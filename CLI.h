@@ -32,18 +32,12 @@ Options:
 #define DESCR_LENGTH 500
 
 typedef enum cli_type {
+	FLAG,
 	BOOL,
 	INT,
 	DOUBLE,
 	STRING
 } cli_type;
-
-typedef enum cli_variant {
-	MAIN,
-	OPT,
-	ARG,
-	COM
-} cli_variant;
 
 typedef struct cli_option_item {
 	cli_type type;
@@ -65,11 +59,6 @@ typedef struct cli_command_item {
 	char description[DESCR_LENGTH];
 	void *command_function;
 } cli_command_item;
-
-typedef struct cli_output {
-	char program_descr[DESCR_LENGTH];
-	cli_option_item *items;
-} cli_output;
 
 typedef struct cli_list_opt {
 	cli_option_item item;
@@ -93,10 +82,11 @@ typedef struct cli_list {
 	cli_list_cmd *cmd_head;
 } cli_list;
 
-int cli_init(cli_list *cli_list_obj, const char *program_desc);
+int cli_init(cli_list *cli_list_obj, const char *program_desc, char *help[2]);
 int cli_display_help(char *help_option_small, char *help_option_big);
 int cli_add_option(cli_list *cli_list_obj, char *option_flag_small, char *option_flag_big, char *descr, cli_type type);
 int cli_add_argument(cli_list* cli_list_obj, char *argument_name, char *descr, int req, cli_type type);
+int cli_help_msg(cli_list *cli_list_obj, char **argv);
 int cli_execute(cli_list *cli_list_obj, int argc, char **argv);
 int cli_destroy(cli_list *cli_list_obj);
 
@@ -109,11 +99,18 @@ cli_execute(int argc, char **argv);*/
 
 #ifdef CLI_IMPLEMENTATION
 
-int cli_init(cli_list *cli_list_obj, const char *program_desc){
+int cli_init(cli_list *cli_list_obj, const char *program_desc, char *help[2]){
 	strncpy(cli_list_obj->prog_description, program_desc, DESCR_LENGTH);
 	cli_list_obj->opt_head = NULL;
 	cli_list_obj->arg_head = NULL;
 	cli_list_obj->cmd_head = NULL;
+
+	if(help == NULL){
+		cli_add_option(cli_list_obj, "-h", "--help", "Help option to show this message.", FLAG);
+	}else{
+		cli_add_option(cli_list_obj, help[0], help[1], "Help option to show this message.", FLAG);
+	}
+
 	return 0;
 }
 
@@ -170,7 +167,8 @@ int cli_add_argument(cli_list* cli_list_obj, char *argument_name, char *descr, i
 
 	return 0;
 }
-int cli_execute(cli_list *cli_list_obj, int argc, char **argv){
+
+int cli_help_msg(cli_list *cli_list_obj, char **argv){
 	cli_list *tmp_list = cli_list_obj;
 	cli_list_opt *tmp_opt = tmp_list->opt_head;
 	cli_list_arg *tmp_arg = tmp_list->arg_head;
@@ -189,6 +187,22 @@ int cli_execute(cli_list *cli_list_obj, int argc, char **argv){
 		printf("'%s':\n\t\t\t%s\n",
 			tmp_arg->item.name,
 			tmp_arg->item.description);
+		tmp_arg = tmp_arg->next;
+	}
+
+	return 0;
+}
+
+int cli_execute(cli_list *cli_list_obj, int argc, char **argv){
+	cli_list *tmp_list = cli_list_obj;
+	cli_list_opt *tmp_opt = tmp_list->opt_head;
+	cli_list_arg *tmp_arg = tmp_list->arg_head;
+	cli_list_cmd *tmp_cmd = tmp_list->cmd_head;
+
+	while(tmp_opt != NULL){
+		tmp_opt = tmp_opt->next;
+	}
+	while(tmp_arg != NULL){
 		tmp_arg = tmp_arg->next;
 	}
 
