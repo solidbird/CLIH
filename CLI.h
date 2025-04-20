@@ -72,7 +72,7 @@ typedef struct cli_list_arg {
 } cli_list_arg;
 
 typedef struct cli_list_cmd {
-	cli_option_item item;
+	cli_command_item item;
 	struct cli_list_cmd *next;
 } cli_list_cmd;
 
@@ -177,20 +177,43 @@ int cli_help_msg(cli_list *cli_list_obj, char **argv){
 
 	printf("Usage: %s\n\t%s\n\n", argv[0], tmp_list->prog_description);
 
-	while(tmp_opt != NULL){
-		printf("'%s, %s':\n\t\t\t%s\n",
-			tmp_opt->item.name_small ? tmp_opt->item.name_small : "",
-			tmp_opt->item.name_big ? tmp_opt->item.name_big: "",
-			tmp_opt->item.description);
-		tmp_opt = tmp_opt->next;
+	if(tmp_opt){
+		printf("OPTIONS:\n");
+		while(tmp_opt != NULL){
+			printf("\t");
+			if(strlen(tmp_opt->item.name_small)){
+				printf("%s", tmp_opt->item.name_small);
+			}
+			if(strlen(tmp_opt->item.name_small) && strlen(tmp_opt->item.name_big)){
+				printf(", ");
+			}
+			if(strlen(tmp_opt->item.name_big)){
+				printf("%s", tmp_opt->item.name_big);
+			}
+			printf("\t\t\t%s\n", tmp_opt->item.description);
+			tmp_opt = tmp_opt->next;
+		}
 	}
-	while(tmp_arg != NULL){
-		printf("'%s':\n\t\t\t%s\n",
-			tmp_arg->item.name,
-			tmp_arg->item.description);
-		tmp_arg = tmp_arg->next;
+	
+	if(tmp_arg){
+		printf("\nARGUMENTS:\n");
+		while(tmp_arg != NULL){
+			printf("\t%s\t\t\t%s\n",
+				tmp_arg->item.name,
+				tmp_arg->item.description);
+			tmp_arg = tmp_arg->next;
+		}
 	}
 
+	if(tmp_cmd){
+		printf("\nCOMMANDS:\n");
+		while(tmp_cmd != NULL){
+			printf("\t%s\t\t\t%s\n",
+				tmp_cmd->item.name,
+				tmp_cmd->item.description);
+			tmp_cmd = tmp_cmd->next;
+		}
+	}
 	return 0;
 }
 
@@ -199,6 +222,19 @@ int cli_execute(cli_list *cli_list_obj, int argc, char **argv){
 	cli_list_opt *tmp_opt = tmp_list->opt_head;
 	cli_list_arg *tmp_arg = tmp_list->arg_head;
 	cli_list_cmd *tmp_cmd = tmp_list->cmd_head;
+
+	if(argc < 2){
+		cli_help_msg(cli_list_obj, argv);
+		exit(1);
+	}
+
+	for(size_t i = 1; i < argc; i++){
+		if(strcmp(tmp_opt->item.name_small, argv[i]) == 0 ||
+		strcmp(tmp_opt->item.name_big, argv[i]) == 0){
+			cli_help_msg(cli_list_obj, argv);
+			exit(0);
+		}
+	}
 
 	while(tmp_opt != NULL){
 		tmp_opt = tmp_opt->next;
