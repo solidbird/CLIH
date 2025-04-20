@@ -28,6 +28,9 @@ Options:
 #include <stdlib.h>
 #include <string.h>
 
+#define NAME_LENGTH 50
+#define DESCR_LENGTH 500
+
 typedef enum cli_type {
 	BOOL,
 	INT,
@@ -44,27 +47,27 @@ typedef enum cli_variant {
 
 typedef struct cli_option_item {
 	cli_type type;
-	char name_small[50];
-	char name_big[50];
-	char description[50];
+	char name_small[NAME_LENGTH];
+	char name_big[NAME_LENGTH];
+	char description[DESCR_LENGTH];
 	void *default_value;
 } cli_option_item;
 
 typedef struct cli_argument_item {
 	cli_type type;
-	char name[50];
-	char description[50];
+	char name[NAME_LENGTH];
+	char description[DESCR_LENGTH];
 	int required;
 } cli_argument_item;
 
 typedef struct cli_command_item {
-	char name[50];
-	char description[50];
+	char name[NAME_LENGTH];
+	char description[DESCR_LENGTH];
 	void *command_function;
 } cli_command_item;
 
 typedef struct cli_output {
-	char program_descr[50];
+	char program_descr[DESCR_LENGTH];
 	cli_option_item *items;
 } cli_output;
 
@@ -84,7 +87,7 @@ typedef struct cli_list_cmd {
 } cli_list_cmd;
 
 typedef struct cli_list {
-	char prog_description[50];
+	char prog_description[DESCR_LENGTH];
 	cli_list_opt *opt_head;
 	cli_list_arg *arg_head;
 	cli_list_cmd *cmd_head;
@@ -93,8 +96,9 @@ typedef struct cli_list {
 int cli_init(cli_list *cli_list_obj, const char *program_desc);
 int cli_display_help(char *help_option_small, char *help_option_big);
 int cli_add_option(cli_list *cli_list_obj, char *option_flag_small, char *option_flag_big, char *descr, cli_type type);
-int cli_add_argument(char *argument_name, cli_type type);
+int cli_add_argument(cli_list* cli_list_obj, char *argument_name, char *descr, int req, cli_type type);
 int cli_execute(cli_list *cli_list_obj, int argc, char **argv);
+int cli_destroy(cli_list *cli_list_obj);
 
 /*cli_init(program_descr);
 cli_add_option("-r", "--reload", "This is a description of the whole thing.", cli_type.BOOL);
@@ -106,7 +110,7 @@ cli_execute(int argc, char **argv);*/
 #ifdef CLI_IMPLEMENTATION
 
 int cli_init(cli_list *cli_list_obj, const char *program_desc){
-	strncpy(cli_list_obj->prog_description, program_desc, 50);
+	strncpy(cli_list_obj->prog_description, program_desc, DESCR_LENGTH);
 	cli_list_obj->opt_head = NULL;
 	cli_list_obj->arg_head = NULL;
 	cli_list_obj->cmd_head = NULL;
@@ -131,19 +135,41 @@ int cli_add_option(cli_list *cli_list_obj, char *option_flag_small, char *option
 	}
 
 	if(option_flag_small){
-		strncpy((*tmp_list)->item.name_small, option_flag_small, 50);
+		strncpy((*tmp_list)->item.name_small, option_flag_small, NAME_LENGTH);
 	}
 	if(option_flag_big){
-		strncpy((*tmp_list)->item.name_big, option_flag_big, 50);
+		strncpy((*tmp_list)->item.name_big, option_flag_big, NAME_LENGTH);
 	}
-	strncpy((*tmp_list)->item.description, descr, 50);
+	strncpy((*tmp_list)->item.description, descr, DESCR_LENGTH);
 	(*tmp_list)->item.default_value = 0;
+	(*tmp_list)->item.type = type;
 
 	return 0;
-
 }
 
-int cli_add_argument(char *argument_name, cli_type type){}
+int cli_add_argument(cli_list* cli_list_obj, char *argument_name, char *descr, int req, cli_type type){
+	cli_list_arg **tmp_list = &cli_list_obj->arg_head;
+
+	if((*tmp_list) != NULL){
+		while((*tmp_list)->next != NULL){
+			(tmp_list) = &(*tmp_list)->next;
+		}
+
+		(*tmp_list)->next = malloc(sizeof(cli_list_arg));
+		tmp_list = &(*tmp_list)->next;
+
+	}else{
+	
+		(*tmp_list) = malloc(sizeof(cli_list_arg));
+	}
+
+	strncpy((*tmp_list)->item.name, argument_name, NAME_LENGTH);
+	strncpy((*tmp_list)->item.description, descr, DESCR_LENGTH);
+	(*tmp_list)->item.required = req;
+	(*tmp_list)->item.type = type;
+
+	return 0;
+}
 int cli_execute(cli_list *cli_list_obj, int argc, char **argv){
 	cli_list *tmp_list = cli_list_obj;
 	cli_list_opt *tmp_opt = tmp_list->opt_head;
@@ -159,8 +185,18 @@ int cli_execute(cli_list *cli_list_obj, int argc, char **argv){
 			tmp_opt->item.description);
 		tmp_opt = tmp_opt->next;
 	}
+	while(tmp_arg != NULL){
+		printf("'%s':\n\t\t\t%s\n",
+			tmp_arg->item.name,
+			tmp_arg->item.description);
+		tmp_arg = tmp_arg->next;
+	}
 
 	return 0;
+}
+
+int cli_destroy(cli_list *cli_list_obj){
+	//TODO: Run through the lists and free every node at the end free the head node of each type
 }
 
 #endif // CLI_IMPLEMENTATION
