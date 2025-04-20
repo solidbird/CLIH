@@ -1,6 +1,7 @@
 /*
  * This is how I imagine the output to lool like:
  * https://zetcode.com/python/click/
+ * https://clig.dev
  *
 Usage: program [OPTIONS] FILE1 FILE2 TEST
 
