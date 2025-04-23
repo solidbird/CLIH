@@ -91,6 +91,7 @@ typedef struct cli_list {
 
 int cli_add_command_group(cli_list *cli_list_obj, cli_cmd_group *cli_cmd_list_group, char *name, char *descr, char *help[2]);
 int cli_group_add_opt(cli_cmd_group *cli_group, char *option_flag_small, char *option_flag_big, char *descr, cli_type type);
+int cli_group_add_arg(cli_cmd_group *cli_group, char *name, char *descr, int required, cli_type type);
 int cli_init(cli_list *cli_list_obj, const char *program_desc, char *help[2]);
 int cli_display_help(char *help_option_small, char *help_option_big);
 int cli_add_option(cli_list *cli_list_obj, char *option_flag_small, char *option_flag_big, char *descr, cli_type type);
@@ -133,6 +134,30 @@ int cli_group_add_opt(cli_cmd_group *cli_group, char *option_flag_small, char *o
 	strncpy((*tmp_list)->item.description, descr, DESCR_LENGTH);
 	(*tmp_list)->item.default_value = 0;
 	(*tmp_list)->item.type = type;
+
+	return 0;
+}
+
+int cli_group_add_arg(cli_cmd_group *cli_group, char *name, char *descr, int required, cli_type type){
+	cli_list_arg **tmp_list = &cli_group->arg_head;
+
+	if((*tmp_list) != NULL){
+		while((*tmp_list)->next != NULL){
+			(tmp_list) = &(*tmp_list)->next;
+		}
+
+		(*tmp_list)->next = malloc(sizeof(cli_list_arg));
+		tmp_list = &(*tmp_list)->next;
+
+	}else{
+	
+		(*tmp_list) = malloc(sizeof(cli_list_arg));
+	}
+
+	strncpy((*tmp_list)->item.name, name, NAME_LENGTH);
+	strncpy((*tmp_list)->item.description, descr, DESCR_LENGTH);
+	(*tmp_list)->item.type = type;
+	(*tmp_list)->item.required = required;
 
 	return 0;
 }
@@ -190,7 +215,6 @@ int cli_add_option(cli_list *cli_list_obj, char *option_flag_small, char *option
 		tmp_list = &(*tmp_list)->next;
 
 	}else{
-	
 		(*tmp_list) = malloc(sizeof(cli_list_opt));
 	}
 
