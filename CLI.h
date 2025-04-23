@@ -55,12 +55,6 @@ typedef struct cli_argument_item {
 	int required;
 } cli_argument_item;
 
-typedef struct cli_command_item {
-	char name[NAME_LENGTH];
-	char description[DESCR_LENGTH];
-	void *command_function;
-} cli_command_item;
-
 typedef struct cli_list_opt {
 	cli_option_item item;
 	struct cli_list_opt *next;
@@ -70,6 +64,18 @@ typedef struct cli_list_arg {
 	cli_argument_item item;
 	struct cli_list_arg *next;
 } cli_list_arg;
+
+typedef struct cli_cmd_group {
+	cli_list_opt *opt_head;
+	cli_list_arg *arg_head;
+} cli_cmd_group;
+
+typedef struct cli_command_item {
+	char name[NAME_LENGTH];
+	char description[DESCR_LENGTH];
+	cli_cmd_group *cli_cmd_list_group;	
+	void* (*command_function)(cli_list_opt *opts, cli_list_arg *args);
+} cli_command_item;
 
 typedef struct cli_list_cmd {
 	cli_command_item item;
@@ -83,6 +89,8 @@ typedef struct cli_list {
 	cli_list_cmd *cmd_head;
 } cli_list;
 
+int cli_add_command_group(cli_list *cli_list_obj, cli_cmd_group *cli_cmd_list_group, char *name, char *descr, char *help[2]);
+int cli_group_add_opt(cli_cmd_group *cli_group, char *option_flag_small, char *option_flag_big, char *descr, cli_type type);
 int cli_init(cli_list *cli_list_obj, const char *program_desc, char *help[2]);
 int cli_display_help(char *help_option_small, char *help_option_big);
 int cli_add_option(cli_list *cli_list_obj, char *option_flag_small, char *option_flag_big, char *descr, cli_type type);
@@ -99,6 +107,60 @@ cli_add_option(NULL, "--ls", "This is a description of the whole thing.", cli_ty
 cli_execute(int argc, char **argv);*/
 
 #ifdef CLI_IMPLEMENTATION
+
+int cli_group_add_opt(cli_cmd_group *cli_group, char *option_flag_small, char *option_flag_big, char *descr, cli_type type){
+	cli_list_opt **tmp_list = &cli_group->opt_head;
+
+	if((*tmp_list) != NULL){
+		while((*tmp_list)->next != NULL){
+			(tmp_list) = &(*tmp_list)->next;
+		}
+
+		(*tmp_list)->next = malloc(sizeof(cli_list_opt));
+		tmp_list = &(*tmp_list)->next;
+
+	}else{
+	
+		(*tmp_list) = malloc(sizeof(cli_list_opt));
+	}
+
+	if(option_flag_small){
+		strncpy((*tmp_list)->item.name_small, option_flag_small, NAME_LENGTH);
+	}
+	if(option_flag_big){
+		strncpy((*tmp_list)->item.name_big, option_flag_big, NAME_LENGTH);
+	}
+	strncpy((*tmp_list)->item.description, descr, DESCR_LENGTH);
+	(*tmp_list)->item.default_value = 0;
+	(*tmp_list)->item.type = type;
+
+	return 0;
+}
+
+int cli_add_command_group(cli_list *cli_list_obj, cli_cmd_group *cli_cmd_list_group, char *name, char *descr, char *help[2]){
+	//add new member of command item to cli_list_obj and add pointer of cli_cmd_list_group to that member
+	cli_list_cmd **tmp_list = &cli_list_obj->cmd_head;
+
+	if((*tmp_list) != NULL){
+		while((*tmp_list)->next != NULL){
+			(tmp_list) = &(*tmp_list)->next;
+		}
+
+		(*tmp_list)->next = malloc(sizeof(cli_list_cmd));
+		tmp_list = &(*tmp_list)->next;
+
+	}else{
+	
+		(*tmp_list) = malloc(sizeof(cli_list_cmd));
+	}
+
+	strncpy((*tmp_list)->item.name, name, NAME_LENGTH);
+	strncpy((*tmp_list)->item.description, descr, DESCR_LENGTH);
+	(*tmp_list)->item.cli_cmd_list_group = cli_cmd_list_group;
+	cli_group_add_opt(cli_cmd_list_group, help[0], help[1], "This is a help message.", FLAG);
+
+	return 0;
+}
 
 int cli_init(cli_list *cli_list_obj, const char *program_desc, char *help[2]){
 	strncpy(cli_list_obj->prog_description, program_desc, DESCR_LENGTH);
@@ -205,7 +267,7 @@ int cli_help_msg(cli_list *cli_list_obj, char **argv){
 		}
 	}
 
-	if(tmp_cmd){
+	/*if(tmp_cmd){
 		printf("\nCOMMANDS:\n");
 		while(tmp_cmd != NULL){
 			printf("\t%s\t\t\t%s\n",
@@ -213,10 +275,11 @@ int cli_help_msg(cli_list *cli_list_obj, char **argv){
 				tmp_cmd->item.description);
 			tmp_cmd = tmp_cmd->next;
 		}
-	}
+	}*/
 	return 0;
 }
 
+// [PROGRAM] [OPTIONS_1] [COMMANDS] [OPTIONS_X] [ARGUMENTS]
 int cli_execute(cli_list *cli_list_obj, int argc, char **argv){
 	cli_list *tmp_list = cli_list_obj;
 	cli_list_opt *tmp_opt = tmp_list->opt_head;
@@ -236,6 +299,9 @@ int cli_execute(cli_list *cli_list_obj, int argc, char **argv){
 		}
 	}
 
+	while(tmp_cmd != NULL){
+		tmp_cmd = tmp_cmd->next;
+	}
 	while(tmp_opt != NULL){
 		tmp_opt = tmp_opt->next;
 	}
