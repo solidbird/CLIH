@@ -58,11 +58,13 @@ typedef struct cli_argument_item {
 typedef struct cli_list_opt {
 	cli_option_item item;
 	struct cli_list_opt *next;
+	struct cli_list_opt *prev;
 } cli_list_opt;
 
 typedef struct cli_list_arg {
 	cli_argument_item item;
 	struct cli_list_arg *next;
+	struct cli_list_arg *prev;
 } cli_list_arg;
 
 typedef struct cli_cmd_group {
@@ -80,6 +82,7 @@ typedef struct cli_command_item {
 typedef struct cli_list_cmd {
 	cli_command_item item;
 	struct cli_list_cmd *next;
+	struct cli_list_cmd *prev;
 } cli_list_cmd;
 
 typedef struct cli_list {
@@ -100,13 +103,6 @@ int cli_help_msg(cli_list *cli_list_obj, char **argv);
 int cli_execute(cli_list *cli_list_obj, int argc, char **argv);
 int cli_destroy(cli_list *cli_list_obj);
 
-/*cli_init(program_descr);
-cli_add_option("-r", "--reload", "This is a description of the whole thing.", cli_type.BOOL);
-cli_add_option("-s", "--start", "Start the program with a delay of X seconds.", cli_type.INT);
-cli_add_option("-t", "--time", "This is a description of the whole thing.", cli_type.BOOL);
-cli_add_option(NULL, "--ls", "This is a description of the whole thing.", cli_type.BOOL);
-cli_execute(int argc, char **argv);*/
-
 #ifdef CLI_IMPLEMENTATION
 
 int cli_group_add_opt(cli_cmd_group *cli_group, char *option_flag_small, char *option_flag_big, char *descr, cli_type type){
@@ -118,6 +114,7 @@ int cli_group_add_opt(cli_cmd_group *cli_group, char *option_flag_small, char *o
 		}
 
 		(*tmp_list)->next = malloc(sizeof(cli_list_opt));
+		(*tmp_list)->next->prev = (*tmp_list);
 		tmp_list = &(*tmp_list)->next;
 
 	}else{
@@ -147,6 +144,7 @@ int cli_group_add_arg(cli_cmd_group *cli_group, char *name, char *descr, int req
 		}
 
 		(*tmp_list)->next = malloc(sizeof(cli_list_arg));
+		(*tmp_list)->next->prev = (*tmp_list);
 		tmp_list = &(*tmp_list)->next;
 
 	}else{
@@ -172,6 +170,7 @@ int cli_add_command_group(cli_list *cli_list_obj, cli_cmd_group *cli_cmd_list_gr
 		}
 
 		(*tmp_list)->next = malloc(sizeof(cli_list_cmd));
+		(*tmp_list)->next->prev = (*tmp_list);
 		tmp_list = &(*tmp_list)->next;
 
 	}else{
@@ -212,6 +211,7 @@ int cli_add_option(cli_list *cli_list_obj, char *option_flag_small, char *option
 		}
 
 		(*tmp_list)->next = malloc(sizeof(cli_list_opt));
+		(*tmp_list)->next->prev = (*tmp_list);
 		tmp_list = &(*tmp_list)->next;
 
 	}else{
@@ -240,6 +240,7 @@ int cli_add_argument(cli_list* cli_list_obj, char *argument_name, char *descr, i
 		}
 
 		(*tmp_list)->next = malloc(sizeof(cli_list_arg));
+		(*tmp_list)->next->prev = (*tmp_list);
 		tmp_list = &(*tmp_list)->next;
 
 	}else{
@@ -266,7 +267,7 @@ int cli_help_msg(cli_list *cli_list_obj, char **argv){
 	if(tmp_opt){
 		printf("OPTIONS:\n");
 		while(tmp_opt != NULL){
-			printf("\t");
+			//printf("\t");
 			if(strlen(tmp_opt->item.name_small)){
 				printf("%s", tmp_opt->item.name_small);
 			}
@@ -276,7 +277,7 @@ int cli_help_msg(cli_list *cli_list_obj, char **argv){
 			if(strlen(tmp_opt->item.name_big)){
 				printf("%s", tmp_opt->item.name_big);
 			}
-			printf("\t\t\t%s\n", tmp_opt->item.description);
+			printf("\t%s\n", tmp_opt->item.description);
 			tmp_opt = tmp_opt->next;
 		}
 	}
@@ -284,22 +285,22 @@ int cli_help_msg(cli_list *cli_list_obj, char **argv){
 	if(tmp_arg){
 		printf("\nARGUMENTS:\n");
 		while(tmp_arg != NULL){
-			printf("\t%s\t\t\t%s\n",
+			printf("%s%s\n",
 				tmp_arg->item.name,
 				tmp_arg->item.description);
 			tmp_arg = tmp_arg->next;
 		}
 	}
 
-	/*if(tmp_cmd){
+	if(tmp_cmd){
 		printf("\nCOMMANDS:\n");
 		while(tmp_cmd != NULL){
-			printf("\t%s\t\t\t%s\n",
+			printf("%s%s\n",
 				tmp_cmd->item.name,
 				tmp_cmd->item.description);
 			tmp_cmd = tmp_cmd->next;
 		}
-	}*/
+	}
 	return 0;
 }
 
@@ -338,6 +339,65 @@ int cli_execute(cli_list *cli_list_obj, int argc, char **argv){
 
 int cli_destroy(cli_list *cli_list_obj){
 	//TODO: Run through the lists and free every node at the end free the head node of each type
+	cli_list_opt *tmp_opt = cli_list_obj->opt_head;
+	cli_list_arg *tmp_arg = cli_list_obj->arg_head;
+	cli_list_cmd *tmp_cmd = cli_list_obj->cmd_head;
+
+	if(tmp_opt != NULL){
+		while(tmp_opt->next != NULL){
+			tmp_opt = tmp_opt->next;
+		}
+		while(tmp_opt != NULL){
+			cli_list_opt *tmp = tmp_opt;
+			tmp_opt = tmp_opt->prev;
+			free(tmp);
+		}
+	}
+	if(tmp_arg != NULL){
+		while(tmp_arg->next != NULL){
+			tmp_arg = tmp_arg->next;
+		}
+		while(tmp_arg != NULL){
+			cli_list_arg *tmp = tmp_arg;
+			tmp_arg = tmp_arg->prev;
+			free(tmp);
+		}
+	}
+	if(tmp_cmd != NULL){
+		while(tmp_cmd->next != NULL){
+			tmp_cmd = tmp_cmd->next;
+		}
+
+		while(tmp_cmd != NULL){
+			cli_list_opt *tmp_cmd_opt = tmp_cmd->item.cli_cmd_list_group->opt_head;
+			cli_list_arg *tmp_cmd_arg = tmp_cmd->item.cli_cmd_list_group->arg_head;
+
+			if(tmp_cmd_opt != NULL){
+				while(tmp_cmd_opt->next != NULL){
+					tmp_cmd_opt = tmp_cmd_opt->next;
+				}
+				while(tmp_cmd_opt != NULL){
+					cli_list_opt *tmp = tmp_cmd_opt;
+					tmp_cmd_opt = tmp_cmd_opt->prev;
+					free(tmp);
+				}
+			}
+			if(tmp_cmd_arg != NULL){
+				while(tmp_cmd_arg->next != NULL){
+					tmp_cmd_arg = tmp_cmd_arg->next;
+				}
+				while(tmp_cmd_arg != NULL){
+					cli_list_arg *tmp = tmp_cmd_arg;
+					tmp_cmd_arg = tmp_cmd_arg->prev;
+					free(tmp);
+				}
+			}
+
+			cli_list_cmd *tmp = tmp_cmd;
+			tmp_cmd = tmp_cmd->prev;
+			free(tmp);
+		}
+	}
 }
 
 #endif // CLI_IMPLEMENTATION
