@@ -307,10 +307,10 @@ int cli_help_msg(cli_list *cli_list_obj, char **argv){
 
 // [PROGRAM] [OPTIONS_1] [COMMANDS] [OPTIONS_X] [ARGUMENTS]
 int cli_execute(cli_list *cli_list_obj, int argc, char **argv){
-	cli_list **tmp_list = &cli_list_obj;
-	cli_opt_list **tmp_opt = &(*tmp_list)->opt_head;
-	cli_arg_list **tmp_arg = &(*tmp_list)->arg_head;
-	cli_cmd_list **tmp_cmd = &(*tmp_list)->cmd_head;
+	cli_list *tmp_list = cli_list_obj;
+	cli_opt_list *tmp_opt = tmp_list->opt_head;
+	cli_arg_list *tmp_arg = tmp_list->arg_head;
+	cli_cmd_list *tmp_cmd = tmp_list->cmd_head;
 
 	if(argc < 2){
 		cli_help_msg(cli_list_obj, argv);
@@ -318,22 +318,33 @@ int cli_execute(cli_list *cli_list_obj, int argc, char **argv){
 	}
 
 	for(size_t i = 1; i < argc; i++){
-		if(strcmp((*tmp_opt)->item.name_small, argv[i]) == 0 ||
-		strcmp((*tmp_opt)->item.name_big, argv[i]) == 0){
+		if(strcmp((tmp_opt)->item.name_small, argv[i]) == 0 ||
+		strcmp((tmp_opt)->item.name_big, argv[i]) == 0){
 			cli_help_msg(cli_list_obj, argv);
 			exit(0);
 		}
 	}
 
-	/*while(tmp_cmd != NULL){
-		tmp_cmd = tmp_cmd->next;
-	}
 	while(tmp_opt != NULL){
+		for(size_t i = 0; i < argc; i++){
+			if(tmp_opt->item.name_small && !strcmp(tmp_opt->item.name_small, argv[i])){
+				printf("[OPT_SMALL]\n");
+			}
+			if(tmp_opt->item.name_big && !strcmp(tmp_opt->item.name_big, argv[i])){
+				printf("[OPT_LONG]\n");
+			}
+		}
 		tmp_opt = tmp_opt->next;
 	}
+
 	while(tmp_arg != NULL){
+		for(size_t i = 0; i < argc; i++){
+			if(!strcmp(tmp_arg->item.name, argv[i])){
+				printf("[ARG]\n");
+			}
+		}
 		tmp_arg = tmp_arg->next;
-	}*/
+	}
 
 	return 0;
 }
