@@ -29,8 +29,8 @@ Options:
 #include <stdlib.h>
 #include <string.h>
 
-#define NAME_LENGTH 50
-#define DESCR_LENGTH 500
+#define NAME_LENGTH 25
+#define DESCR_LENGTH 250
 
 typedef enum cli_type {
 	FLAG,
@@ -41,18 +41,20 @@ typedef enum cli_type {
 } cli_type;
 
 typedef struct cli_opt_item {
-	cli_type type;
 	char name_small[NAME_LENGTH];
 	char name_big[NAME_LENGTH];
 	char description[DESCR_LENGTH];
+	cli_type type;
+	int required;
 	void *default_value;
 } cli_opt_item;
 
 typedef struct cli_arg_item {
-	cli_type type;
 	char name[NAME_LENGTH];
 	char description[DESCR_LENGTH];
+	cli_type type;
 	int required;
+	void *default_value;
 } cli_arg_item;
 
 typedef struct cli_opt_list {
@@ -92,20 +94,26 @@ typedef struct cli_list {
 	cli_cmd_list *cmd_head;
 } cli_list;
 
-int cli_add_command_group(cli_list *cli_list_obj, cli_cmd_group *cli_cmd_list_group, char *name, char *descr, char *help[2]);
-int cli_group_add_opt(cli_cmd_group *cli_group, char *option_flag_small, char *option_flag_big, char *descr, cli_type type);
-int cli_group_add_arg(cli_cmd_group *cli_group, char *name, char *descr, int required, cli_type type);
 int cli_init(cli_list *cli_list_obj, const char *program_desc, char *help[2]);
+int cli_destroy(cli_list *cli_list_obj);
+//Options
+int cli_add_opt_basic(cli_list *cli_list_obj, char *option_flag_small, char *option_flag_big, char *descr);
+int cli_add_opt(cli_list *cli_list_obj, cli_opt_item opt);
+//Arguments
+int cli_add_arg_basic(cli_list* cli_list_obj, char *argument_name, char *descr);
+int cli_add_arg(cli_list* cli_list_obj, cli_arg_item arg);
+//Commands
+int cli_add_cmd_grp(cli_list *cli_list_obj, cli_cmd_group *cli_cmd_list_group, char *name, char *descr, char *help[2]);
+int cli_grp_add_opt(cli_cmd_group *cli_group, char *option_flag_small, char *option_flag_big, char *descr, cli_type type);
+int cli_grp_add_arg(cli_cmd_group *cli_group, char *name, char *descr, int required, cli_type type);
+
 int cli_display_help(char *help_option_small, char *help_option_big);
-int cli_add_option(cli_list *cli_list_obj, char *option_flag_small, char *option_flag_big, char *descr, cli_type type);
-int cli_add_argument(cli_list* cli_list_obj, char *argument_name, char *descr, int req, cli_type type);
 int cli_help_msg(cli_list *cli_list_obj, char **argv);
 int cli_execute(cli_list *cli_list_obj, int argc, char **argv);
-int cli_destroy(cli_list *cli_list_obj);
 
 #ifdef CLI_IMPLEMENTATION
 
-int cli_group_add_opt(cli_cmd_group *cli_group, char *option_flag_small, char *option_flag_big, char *descr, cli_type type){
+int cli_grp_add_opt(cli_cmd_group *cli_group, char *option_flag_small, char *option_flag_big, char *descr, cli_type type){
 	cli_opt_list **tmp_list = &cli_group->opt_head;
 
 	if((*tmp_list) != NULL){
@@ -135,7 +143,7 @@ int cli_group_add_opt(cli_cmd_group *cli_group, char *option_flag_small, char *o
 	return 0;
 }
 
-int cli_group_add_arg(cli_cmd_group *cli_group, char *name, char *descr, int required, cli_type type){
+int cli_grp_add_arg(cli_cmd_group *cli_group, char *name, char *descr, int required, cli_type type){
 	cli_arg_list **tmp_list = &cli_group->arg_head;
 
 	if((*tmp_list) != NULL){
@@ -160,7 +168,7 @@ int cli_group_add_arg(cli_cmd_group *cli_group, char *name, char *descr, int req
 	return 0;
 }
 
-int cli_add_command_group(cli_list *cli_list_obj, cli_cmd_group *cli_cmd_list_group, char *name, char *descr, char *help[2]){
+int cli_add_cmd_grp(cli_list *cli_list_obj, cli_cmd_group *cli_cmd_list_group, char *name, char *descr, char *help[2]){
 	//add new member of command item to cli_list_obj and add pointer of cli_cmd_list_group to that member
 	cli_cmd_list **tmp_list = &cli_list_obj->cmd_head;
 
@@ -181,7 +189,7 @@ int cli_add_command_group(cli_list *cli_list_obj, cli_cmd_group *cli_cmd_list_gr
 	strncpy((*tmp_list)->item.name, name, NAME_LENGTH);
 	strncpy((*tmp_list)->item.description, descr, DESCR_LENGTH);
 	(*tmp_list)->item.cli_cmd_list_group = cli_cmd_list_group;
-	cli_group_add_opt(cli_cmd_list_group, help[0], help[1], "This is a help message.", FLAG);
+	cli_grp_add_opt(cli_cmd_list_group, help[0], help[1], "This is a help message.", FLAG);
 
 	return 0;
 }
@@ -193,16 +201,16 @@ int cli_init(cli_list *cli_list_obj, const char *program_desc, char *help[2]){
 	cli_list_obj->cmd_head = NULL;
 
 	if(help == NULL){
-		cli_add_option(cli_list_obj, "-h", "--help", "Help option to show this message.", FLAG);
+		cli_add_opt(cli_list_obj,(cli_opt_item){"-h", "--help", "Help option to show this message.", FLAG});
 	}else{
-		cli_add_option(cli_list_obj, help[0], help[1], "Help option to show this message.", FLAG);
+		cli_add_opt(cli_list_obj,(cli_opt_item){help[0], help[1], "Help option to show this message.", FLAG});
 	}
 
 	return 0;
 }
 
 int cli_display_help(char *help_option_small, char *help_option_big){}
-int cli_add_option(cli_list *cli_list_obj, char *option_flag_small, char *option_flag_big, char *descr,  cli_type type){
+int cli_add_opt(cli_list *cli_list_obj, cli_opt_item opt){
 	cli_opt_list **tmp_list = &cli_list_obj->opt_head;
 
 	if((*tmp_list) != NULL){
@@ -219,20 +227,21 @@ int cli_add_option(cli_list *cli_list_obj, char *option_flag_small, char *option
 		(*tmp_list) = malloc(sizeof(cli_opt_list));
 	}
 
-	if(option_flag_small){
-		strncpy((*tmp_list)->item.name_small, option_flag_small, NAME_LENGTH);
+	if(opt.name_small){
+		strncpy((*tmp_list)->item.name_small, opt.name_small, NAME_LENGTH);
 	}
-	if(option_flag_big){
-		strncpy((*tmp_list)->item.name_big, option_flag_big, NAME_LENGTH);
+	if(opt.name_big){
+		strncpy((*tmp_list)->item.name_big, opt.name_big, NAME_LENGTH);
 	}
-	strncpy((*tmp_list)->item.description, descr, DESCR_LENGTH);
-	(*tmp_list)->item.default_value = 0;
-	(*tmp_list)->item.type = type;
+	strncpy((*tmp_list)->item.description, opt.description, DESCR_LENGTH);
+	(*tmp_list)->item.type = opt.type;
+	(*tmp_list)->item.required = opt.required;
+	(*tmp_list)->item.default_value = opt.default_value;
 
 	return 0;
 }
 
-int cli_add_argument(cli_list* cli_list_obj, char *argument_name, char *descr, int req, cli_type type){
+int cli_add_arg(cli_list* cli_list_obj, cli_arg_item arg){
 	cli_arg_list **tmp_list = &cli_list_obj->arg_head;
 
 	if((*tmp_list) != NULL){
@@ -249,10 +258,11 @@ int cli_add_argument(cli_list* cli_list_obj, char *argument_name, char *descr, i
 		(*tmp_list) = malloc(sizeof(cli_arg_list));
 	}
 
-	strncpy((*tmp_list)->item.name, argument_name, NAME_LENGTH);
-	strncpy((*tmp_list)->item.description, descr, DESCR_LENGTH);
-	(*tmp_list)->item.required = req;
-	(*tmp_list)->item.type = type;
+	strncpy((*tmp_list)->item.name, arg.name, NAME_LENGTH);
+	strncpy((*tmp_list)->item.description, arg.description, DESCR_LENGTH);
+	(*tmp_list)->item.type = arg.type;
+	(*tmp_list)->item.required = arg.required;
+	(*tmp_list)->item.default_value = arg.default_value;
 
 	return 0;
 }
