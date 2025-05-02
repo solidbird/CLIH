@@ -28,6 +28,7 @@ Options:
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #define NAME_LENGTH 25
 #define DESCR_LENGTH 250
@@ -110,6 +111,7 @@ int cli_grp_add_arg(cli_cmd_group *cli_group, char *name, char *descr, int requi
 int cli_display_help(char *help_option_small, char *help_option_big);
 int cli_help_msg(cli_list *cli_list_obj, char **argv);
 int cli_execute(cli_list *cli_list_obj, int argc, char **argv);
+int check_opt_type(cli_opt_list *tmp_opt, char *argv);
 
 #ifdef CLI_IMPLEMENTATION
 
@@ -315,7 +317,184 @@ int cli_help_msg(cli_list *cli_list_obj, char **argv){
 	return 0;
 }
 
-// [PROGRAM] [OPTIONS_1] [COMMANDS] [OPTIONS_X] [ARGUMENTS]
+cli_opt_list* find_opt_name(cli_opt_list *opt_list, char search_name[NAME_LENGTH]){
+	size_t i = 0;
+	cli_opt_list *tmp = opt_list;
+	while(tmp != NULL){
+		if(!strcmp(tmp->item.name_small, search_name)){
+			return tmp;
+		}
+		if(!strcmp(tmp->item.name_big, search_name)){
+			return tmp;
+		}
+		i++;
+		tmp = tmp->next;
+	}
+	return NULL;
+}
+
+cli_cmd_list* find_cmd_name(cli_cmd_list *cmd_list, char search_name[NAME_LENGTH]){
+	size_t i = 0;
+	cli_cmd_list *tmp = cmd_list;
+	while(tmp != NULL){
+		if(!strcmp(tmp->item.name, search_name)){
+			return tmp;
+		}
+		i++;
+		tmp = tmp->next;
+	}
+	return NULL;
+}
+
+int check_arg_type(cli_arg_list *tmp_arg, char *argv){
+	switch(tmp_arg->item.type){
+		case FLAG:
+			return -1;
+		break;
+		case BOOL:
+			if(argv == NULL) return -2;
+
+			char *bool_values[] = {"yes", "no", "true", "false", "y", "n"};
+			for(size_t i = 0; i < 6; i++){
+				//tolower(argv)
+				if(!strcmp(bool_values[i], argv)){
+					return 0; 
+				}
+			}
+			return -2;
+		break;
+		case INT:
+			if(argv == NULL) return -2;
+
+			for(int i = 0; i < strlen(argv); i++){
+				if(!isdigit(argv[i]))
+					return -2;
+			}
+			return 0;
+		break;
+		case DOUBLE:
+			if(argv == NULL) return -2;
+
+			char *endptr;
+			double val = strtod(argv, &endptr);
+			if (argv == endptr) return 0;
+			return -2;
+		break;
+		case STRING:
+			if(argv == NULL) return -2;
+
+			return 0;
+		break;
+	}
+}
+
+int check_opt_type(cli_opt_list *tmp_opt, char *argv){
+	switch(tmp_opt->item.type){
+		case FLAG:
+			return -1;
+		break;
+		case BOOL:
+			if(argv == NULL) return -2;
+
+			char *bool_values[] = {"yes", "no", "true", "false", "y", "n"};
+			for(size_t i = 0; i < 6; i++){
+				//tolower(argv)
+				if(!strcmp(bool_values[i], argv)){
+					return 0; 
+				}
+			}
+			return -2;
+		break;
+		case INT:
+			if(argv == NULL) return -2;
+
+			for(int i = 0; i < strlen(argv); i++){
+				if(!isdigit(argv[i]))
+					return -2;
+			}
+			return 0;
+		break;
+		case DOUBLE:
+			if(argv == NULL) return -2;
+
+			char *endptr;
+			double val = strtod(argv, &endptr);
+			if (argv == endptr) return 0;
+			return -2;
+		break;
+		case STRING:
+			if(argv == NULL) return -2;
+
+			return 0;
+		break;
+	}
+}
+
+
+int cli_opt_parser(cli_opt_list *opt_head, int argc, char **argv, int *index){
+	for(; *index < argc; (*index)++){
+		cli_opt_list *found_opt = find_opt_name(opt_head, argv[*index]);
+		if(found_opt != NULL){
+			printf("[OPT]\n");
+			int check_res = 0;
+			if(*index + 1 < argc){
+				check_res = check_opt_type(found_opt, argv[*index+1]);
+			}else{
+				check_res = check_opt_type(found_opt, NULL);
+			}
+
+			if(check_res > -1){
+				printf("[OPT-ARG]\n");
+				(*index)++;
+			}else if(check_res == -2){
+				printf("!!EXPECTED ARG!!\n");
+				return 0;
+			}else{
+				printf("[FLAG]\n");
+			}
+		}else{
+			break;
+		}
+	}
+
+	return 1;
+}
+
+int cli_arg_parser(cli_arg_list *arg_head, int argc, char **argv, int *index){
+	if(*index >= argc) return 1;
+
+	cli_arg_list *tmp_arg = arg_head;
+	for(; *index < argc; *index++){
+		int check_res = check_arg_type(tmp_arg, argv[*index]);
+		if(check_res > -1){
+			printf("[ARG]\n");
+		}else{
+			printf("!!EXPECTED ARG!!\n");
+			return 0;
+		}
+		tmp_arg = tmp_arg->next;
+	}
+
+	return 1;
+}
+
+int cli_cmd_parser(cli_cmd_list *cmd_head, int argc, char **argv, int *index){
+	if(*index >= argc) return 1;
+
+	cli_cmd_list *found_cmd = find_cmd_name(cmd_head, argv[*index]);
+	if(found_cmd != NULL){
+		printf("[CMD]\n");
+		(*index)++;
+		int res_opt = cli_opt_parser(found_cmd->item.cli_cmd_list_group->opt_head, argc, argv, index);
+		int res_arg = cli_arg_parser(found_cmd->item.cli_cmd_list_group->arg_head, argc, argv, index);
+		return (res_opt && res_arg) ? 1 : -1;
+	}
+
+	return 0;
+}
+
+// [PROGRAM]: [OPTIONS | OPTIONS=args]* ([COMMANDS]? | [ARGUMENTS]*)
+// [COMMANDS]: [OPTIONS | OPTIONS=args]* [ARGUMENTS]*
 int cli_execute(cli_list *cli_list_obj, int argc, char **argv){
 	cli_list *tmp_list = cli_list_obj;
 	cli_opt_list *tmp_opt = tmp_list->opt_head;
@@ -335,27 +514,18 @@ int cli_execute(cli_list *cli_list_obj, int argc, char **argv){
 		}
 	}
 
-	while(tmp_opt != NULL){
-		for(size_t i = 0; i < argc; i++){
-			if(tmp_opt->item.name_small && !strcmp(tmp_opt->item.name_small, argv[i])){
-				printf("[OPT_SMALL]\n");
-			}
-			if(tmp_opt->item.name_big && !strcmp(tmp_opt->item.name_big, argv[i])){
-				printf("[OPT_LONG]\n");
-			}
-		}
-		tmp_opt = tmp_opt->next;
+	tmp_opt = tmp_opt->next;
+	int i = 1;
+	if(!cli_opt_parser(tmp_opt, argc, argv, &i))
+		return 0;
+	int cmd_parse_res = cli_cmd_parser(tmp_cmd, argc, argv, &i);
+	if(cmd_parse_res == 0){
+		if(!cli_arg_parser(tmp_arg, argc, argv, &i))
+			return 1;
+	}else if(cmd_parse_res == 1 && i == argc-1){
+		return 1;
 	}
-
-	while(tmp_arg != NULL){
-		for(size_t i = 0; i < argc; i++){
-			if(!strcmp(tmp_arg->item.name, argv[i])){
-				printf("[ARG]\n");
-			}
-		}
-		tmp_arg = tmp_arg->next;
-	}
-
+	
 	return 0;
 }
 
