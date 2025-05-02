@@ -464,7 +464,8 @@ int cli_arg_parser(cli_arg_list *arg_head, int argc, char **argv, int *index){
 	if(*index >= argc) return 1;
 
 	cli_arg_list *tmp_arg = arg_head;
-	for(; *index < argc; *index++){
+	for(; *index < argc; (*index)++){
+		if(tmp_arg == NULL) return 0;
 		int check_res = check_arg_type(tmp_arg, argv[*index]);
 		if(check_res > -1){
 			printf("[ARG]\n");
@@ -522,7 +523,7 @@ int cli_execute(cli_list *cli_list_obj, int argc, char **argv){
 	if(cmd_parse_res == 0){
 		if(!cli_arg_parser(tmp_arg, argc, argv, &i))
 			return 1;
-	}else if(cmd_parse_res == 1 && i == argc-1){
+	}else if(cmd_parse_res == 1 && i == argc){
 		return 1;
 	}
 	
