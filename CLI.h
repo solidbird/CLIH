@@ -395,6 +395,7 @@ int check_opt_type(cli_opt_list *tmp_opt, char *argv){
 		break;
 		case BOOL:
 			if(argv == NULL) return -2;
+			if(argv[0] == '-') return -2;
 
 			char *bool_values[] = {"yes", "no", "true", "false", "y", "n"};
 			for(size_t i = 0; i < 6; i++){
@@ -407,6 +408,7 @@ int check_opt_type(cli_opt_list *tmp_opt, char *argv){
 		break;
 		case INT:
 			if(argv == NULL) return -2;
+			if(argv[0] == '-') return -2;
 
 			for(int i = 0; i < strlen(argv); i++){
 				if(!isdigit(argv[i]))
@@ -416,6 +418,7 @@ int check_opt_type(cli_opt_list *tmp_opt, char *argv){
 		break;
 		case DOUBLE:
 			if(argv == NULL) return -2;
+			if(argv[0] == '-') return -2;
 
 			char *endptr;
 			double val = strtod(argv, &endptr);
@@ -424,6 +427,7 @@ int check_opt_type(cli_opt_list *tmp_opt, char *argv){
 		break;
 		case STRING:
 			if(argv == NULL) return -2;
+			if(argv[0] == '-') return -2;
 
 			return 0;
 		break;
@@ -453,6 +457,8 @@ int cli_opt_parser(cli_opt_list *opt_head, int argc, char **argv, int *index){
 				printf("[FLAG]\n");
 			}
 		}else{
+			if(argv[*index][0] == '-')
+				return 0;
 			break;
 		}
 	}
@@ -487,6 +493,7 @@ int cli_cmd_parser(cli_cmd_list *cmd_head, int argc, char **argv, int *index){
 		printf("[CMD]\n");
 		(*index)++;
 		int res_opt = cli_opt_parser(found_cmd->item.cli_cmd_list_group->opt_head, argc, argv, index);
+		if(!res_opt) return -1;
 		int res_arg = cli_arg_parser(found_cmd->item.cli_cmd_list_group->arg_head, argc, argv, index);
 		return (res_opt && res_arg) ? 1 : -1;
 	}
@@ -521,8 +528,7 @@ int cli_execute(cli_list *cli_list_obj, int argc, char **argv){
 		return 0;
 	int cmd_parse_res = cli_cmd_parser(tmp_cmd, argc, argv, &i);
 	if(cmd_parse_res == 0){
-		if(!cli_arg_parser(tmp_arg, argc, argv, &i))
-			return 1;
+		return cli_arg_parser(tmp_arg, argc, argv, &i);
 	}else if(cmd_parse_res == 1 && i == argc){
 		return 1;
 	}
