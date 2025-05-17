@@ -512,7 +512,6 @@ int check_opt_type(cli_cmd_group *grp, cli_opt_list *tmp_opt, char *argv){
 					if(tmp_opt->result == NULL){
 						tmp_opt->result = malloc(sizeof(uint64_t));
 					}
-					tmp_opt->result = malloc(sizeof(uint64_t));
 					if(!(i%2)){
 						*tmp_opt->result = 1;
 						remove_req_opt(&grp->opt_req, &tmp_opt->item);
