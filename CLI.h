@@ -143,6 +143,7 @@ void add_req_arg(cli_req_arg **list, cli_arg_item *item);
 void remove_req_arg(cli_req_arg **list, cli_arg_item *item);
 void add_req_opt(cli_req_opt **list, cli_opt_item *item);
 void remove_req_opt(cli_req_opt **list, cli_opt_item *item);
+int found_req(cli_cmd_group *grp);
 
 #ifdef CLI_IMPLEMENTATION
 
@@ -717,13 +718,36 @@ int cli_cmd_parser(cli_cmd_list *cmd_head, int argc, char **argv, int *index){
 		printf("[CMD]\n");
 		(*index)++;
 		int res_opt = cli_opt_parser(found_cmd->item.cli_cmd_list_group, argc, argv, index);
-		if(!res_opt) -1;
+		if(!res_opt) return -1;
 		int res_arg = cli_arg_parser(found_cmd->item.cli_cmd_list_group, argc, argv, index);
-		if(!res_arg) -1;
+		if(!res_arg) return -1;
+		if(found_req(found_cmd->item.cli_cmd_list_group)){
+			return -1;
+		}
 		return 1;
 	}
 
 	return 0;
+}
+
+int found_req(cli_cmd_group *grp){
+	cli_req_opt *tmp_opt_req = grp->opt_req;
+	cli_req_arg *tmp_arg_req = grp->arg_req;
+
+	int exit_code_req = 0;
+
+	while(tmp_opt_req != NULL){
+		printf("[REQ OPT FOUND]: %s%s\n", tmp_opt_req->item->name_small, tmp_opt_req->item->name_big);
+		exit_code_req = 1;
+		tmp_opt_req = tmp_opt_req->next;
+	}
+	while(tmp_arg_req != NULL){
+		printf("[REQ ARG FOUND]: %s\n", tmp_arg_req->item->name);
+		exit_code_req = 1;
+		tmp_arg_req = tmp_arg_req->next;
+	}
+
+	return exit_code_req;
 }
 
 // [PROGRAM]: [OPTIONS | OPTIONS=args]* ([COMMANDS]? | [ARGUMENTS]*)
@@ -755,30 +779,13 @@ int cli_execute(cli_list *cli_list_obj, int argc, char **argv){
 	if(cmd_parse_res == 0){
 		return cli_arg_parser(cli_list_obj->opt_arg_grp, argc, argv, &i);
 	}else if(cmd_parse_res == 1 && i == argc){
-
-		cli_req_opt *tmp_opt_req = tmp_list->opt_arg_grp->opt_req;
-		cli_req_arg *tmp_arg_req = tmp_list->opt_arg_grp->arg_req;
-		int exit_code_req = 1;
-
-		while(tmp_opt_req != NULL){
-			printf("[REQ OPT FOUND]: %s%s\n", tmp_opt_req->item->name_small, tmp_opt_req->item->name_big);
-			exit_code_req = 0;
-			tmp_opt_req = tmp_opt_req->next;
-		}
-		while(tmp_arg_req != NULL){
-			printf("[REQ ARG FOUND]: %s\n", tmp_arg_req->item->name);
-			exit_code_req = 0;
-			tmp_arg_req = tmp_arg_req->next;
-		}
-		if(cmd_parse_res == 1){
-			//TODO: See if any required opt/args are there just like implemented above
-			//(maybe put above code in a function so we dont have to write same code twice)
-		}
-		return exit_code_req;
+		return !found_req(tmp_list->opt_arg_grp);
 	}
 
 	return 0;
 }
+
+
 
 int cli_destroy(cli_list *cli_list_obj){
 	//TODO: Run through the lists and free every node at the end free the head node of each type
