@@ -104,7 +104,6 @@ typedef struct cli_cmd_list {
 	struct cli_cmd_list *prev;
 } cli_cmd_list;
 
-//TODO: add a cli_cmd_group to cli_list to make it easier later for giving it to functions
 //TODO: dont let the user define a cmd_head and give it to the struct instead just allocate space for the cmd_head
 //		on init. That way we dont have any issue with dereferencing the cmd_head if the is deleted from the stack of the function
 typedef struct cli_list {
@@ -143,7 +142,8 @@ void add_req_arg(cli_req_arg **list, cli_arg_item *item);
 void remove_req_arg(cli_req_arg **list, cli_arg_item *item);
 void add_req_opt(cli_req_opt **list, cli_opt_item *item);
 void remove_req_opt(cli_req_opt **list, cli_opt_item *item);
-int found_req(cli_cmd_group *grp);
+int found_opt_req(cli_cmd_group *grp);
+int found_arg_req(cli_cmd_group *grp);
 
 #ifdef CLI_IMPLEMENTATION
 
@@ -711,17 +711,22 @@ int cli_arg_parser(cli_cmd_group *grp_list, int argc, char **argv, int *index){
 }
 
 int cli_cmd_parser(cli_cmd_list *cmd_head, int argc, char **argv, int *index){
-	if(*index >= argc) return 1;
+	if(*index >= argc) return 0;
 
 	cli_cmd_list *found_cmd = find_cmd_name(cmd_head, argv[*index]);
 	if(found_cmd != NULL){
 		printf("[CMD]\n");
 		(*index)++;
 		int res_opt = cli_opt_parser(found_cmd->item.cli_cmd_list_group, argc, argv, index);
-		if(!res_opt) return -1;
+		int req_opt_ret = found_opt_req(found_cmd->item.cli_cmd_list_group);
+		if(!res_opt && req_opt_ret) return -1;
 		int res_arg = cli_arg_parser(found_cmd->item.cli_cmd_list_group, argc, argv, index);
-		if(!res_arg) return -1;
-		if(found_req(found_cmd->item.cli_cmd_list_group)){
+		int req_arg_ret = found_arg_req(found_cmd->item.cli_cmd_list_group);
+		if(!res_arg && req_arg_ret) return -1;
+		if(found_opt_req(found_cmd->item.cli_cmd_list_group)){
+			return -1;
+		}
+		if(found_arg_req(found_cmd->item.cli_cmd_list_group)){
 			return -1;
 		}
 		return 1;
@@ -730,9 +735,8 @@ int cli_cmd_parser(cli_cmd_list *cmd_head, int argc, char **argv, int *index){
 	return 0;
 }
 
-int found_req(cli_cmd_group *grp){
+int found_opt_req(cli_cmd_group *grp){
 	cli_req_opt *tmp_opt_req = grp->opt_req;
-	cli_req_arg *tmp_arg_req = grp->arg_req;
 
 	int exit_code_req = 0;
 
@@ -741,6 +745,15 @@ int found_req(cli_cmd_group *grp){
 		exit_code_req = 1;
 		tmp_opt_req = tmp_opt_req->next;
 	}
+
+	return exit_code_req;
+}
+
+int found_arg_req(cli_cmd_group *grp){
+	cli_req_arg *tmp_arg_req = grp->arg_req;
+
+	int exit_code_req = 0;
+
 	while(tmp_arg_req != NULL){
 		printf("[REQ ARG FOUND]: %s\n", tmp_arg_req->item->name);
 		exit_code_req = 1;
@@ -773,19 +786,21 @@ int cli_execute(cli_list *cli_list_obj, int argc, char **argv){
 
 	tmp_opt = tmp_opt->next;
 	int i = 1;
-	if(!cli_opt_parser(cli_list_obj->opt_arg_grp, argc, argv, &i))
+	int opt_ret = !cli_opt_parser(cli_list_obj->opt_arg_grp, argc, argv, &i);
+	int req_opt_ret = !found_opt_req(cli_list_obj->opt_arg_grp);
+	if(opt_ret && req_opt_ret)
 		return 0;
 	int cmd_parse_res = cli_cmd_parser(tmp_cmd, argc, argv, &i);
 	if(cmd_parse_res == 0){
-		return cli_arg_parser(cli_list_obj->opt_arg_grp, argc, argv, &i);
+		int arg_ret = cli_arg_parser(cli_list_obj->opt_arg_grp, argc, argv, &i);
+		int req_ret = !found_arg_req(cli_list_obj->opt_arg_grp);
+		return req_ret && arg_ret;
 	}else if(cmd_parse_res == 1 && i == argc){
-		return !found_req(tmp_list->opt_arg_grp);
+		return 1;
 	}
 
 	return 0;
 }
-
-
 
 int cli_destroy(cli_list *cli_list_obj){
 	//TODO: Run through the lists and free every node at the end free the head node of each type
