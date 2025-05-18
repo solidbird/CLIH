@@ -122,7 +122,7 @@ int cli_add_opt(cli_cmd_group *cli_group, cli_opt_item opt);
 int cli_add_arg_basic(cli_list* cli_list_obj, char *argument_name, char *descr);
 int cli_add_arg(cli_cmd_group *cli_group, cli_arg_item arg);
 //Commands
-int cli_add_cmd_grp(cli_list *cli_list_obj, cli_cmd_group *cli_cmd_list_group, char *name, char *descr, char *help[2], void * func(cli_cmd_group*, cli_cmd_group*));
+cli_cmd_group* cli_add_cmd_grp(cli_list *cli_list_obj, char *name, char *descr, char *help[2], void * func(cli_cmd_group*, cli_cmd_group*));
 int cli_grp_add_opt(cli_cmd_group *cli_group, char *option_flag_small, char *option_flag_big, char *descr, cli_type type);
 int cli_grp_add_arg(cli_cmd_group *cli_group, char *name, char *descr, int required, cli_type type);
 
@@ -224,7 +224,7 @@ int cli_grp_add_arg(cli_cmd_group *cli_group, char *name, char *descr, int requi
 	return 0;
 }
 
-int cli_add_cmd_grp(cli_list *cli_list_obj, cli_cmd_group *cli_cmd_list_group, char *name, char *descr, char *help[2], void * func(cli_cmd_group*, cli_cmd_group*)){
+cli_cmd_group* cli_add_cmd_grp(cli_list *cli_list_obj, char *name, char *descr, char *help[2], void * func(cli_cmd_group*, cli_cmd_group*)){
 	//add new member of command item to cli_list_obj and add pointer of cli_cmd_list_group to that member
 	cli_cmd_list **tmp_list = &cli_list_obj->cmd_head;
 
@@ -244,11 +244,11 @@ int cli_add_cmd_grp(cli_list *cli_list_obj, cli_cmd_group *cli_cmd_list_group, c
 
 	strncpy((*tmp_list)->item.name, name, NAME_LENGTH);
 	strncpy((*tmp_list)->item.description, descr, DESCR_LENGTH);
-	(*tmp_list)->item.cli_cmd_list_group = cli_cmd_list_group;
+	(*tmp_list)->item.cli_cmd_list_group = malloc(sizeof(cli_cmd_group));
 	(*tmp_list)->item.command_function = func;
-	cli_grp_add_opt(cli_cmd_list_group, help[0], help[1], "This is a help message.", FLAG);
+	cli_grp_add_opt((*tmp_list)->item.cli_cmd_list_group, help[0], help[1], "This is a help message.", FLAG);
 
-	return 0;
+	return (*tmp_list)->item.cli_cmd_list_group;
 }
 
 int cli_init(cli_list *cli_list_obj, const char *program_desc, char *help[2]){
@@ -841,6 +841,7 @@ int cli_destroy(cli_list *cli_list_obj){
 			cli_arg_list *tmp_cmd_arg = tmp_cmd->item.cli_cmd_list_group->arg_head;
 			cli_req_opt *tmp_cmd_opt_req = tmp_cmd->item.cli_cmd_list_group->opt_req;
 			cli_req_arg *tmp_cmd_arg_req = tmp_cmd->item.cli_cmd_list_group->arg_req;
+			cli_cmd_group *tmp_cmd_grp = tmp_cmd->item.cli_cmd_list_group;
 
 			if(tmp_cmd_opt != NULL){
 				while(tmp_cmd_opt->next != NULL){
@@ -886,6 +887,7 @@ int cli_destroy(cli_list *cli_list_obj){
 			}
 
 			cli_cmd_list *tmp = tmp_cmd;
+			free(tmp->item.cli_cmd_list_group);
 			tmp_cmd = tmp_cmd->prev;
 			free(tmp);
 		}
