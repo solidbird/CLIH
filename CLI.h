@@ -508,7 +508,6 @@ int check_opt_type(cli_cmd_group *grp, cli_opt_list *tmp_opt, char *argv){
 
 			char *bool_values[] = {"yes", "no", "true", "false", "y", "n"};
 			for(size_t i = 0; i < 6; i++){
-				//tolower(argv)
 				if(!strcmp(bool_values[i], argv)){
 					if(tmp_opt->result == NULL){
 						tmp_opt->result = malloc(sizeof(uint64_t));
@@ -787,8 +786,8 @@ int cli_execute(cli_list *cli_list_obj, int argc, char **argv){
 	tmp_opt = tmp_opt->next;
 	int i = 1;
 	int opt_ret = !cli_opt_parser(cli_list_obj->opt_arg_grp, argc, argv, &i);
-	int req_opt_ret = !found_opt_req(cli_list_obj->opt_arg_grp);
-	if(opt_ret && req_opt_ret)
+	int req_opt_ret = found_opt_req(cli_list_obj->opt_arg_grp);
+	if(opt_ret || req_opt_ret)
 		return 0;
 	int cmd_parse_res = cli_cmd_parser(tmp_cmd, argc, argv, &i);
 	if(cmd_parse_res == 0){
