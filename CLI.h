@@ -662,7 +662,6 @@ int cli_opt_parser(cli_cmd_group *grp_list, int argc, char **argv, int *index){
 	for(; *index < argc; (*index)++){
 		cli_opt_list *found_opt = find_opt_name(opt_head, argv[*index]);
 		if(found_opt != NULL){
-			printf("[OPT]\n");
 			int check_res = 0;
 			if(*index + 1 < argc){
 				check_res = check_opt_type(grp_list, found_opt, argv[*index+1]);
@@ -671,14 +670,28 @@ int cli_opt_parser(cli_cmd_group *grp_list, int argc, char **argv, int *index){
 			}
 
 			if(check_res > -1){
-				printf("[OPT-ARG]\n");
 				(*index)++;
 				
 			}else if(check_res == -2){
-				printf("!!EXPECTED ARG!!\n");
+				#ifndef CLI_MUTE
+				printf("Option '%s' requires argument of type ", argv[*index]);
+				switch(found_opt->item.type){
+					case BOOL:
+						printf("BOOL");
+					break;
+					case STRING:
+						printf("STRING");
+					break;
+					case INT:
+						printf("INT");
+					break;
+					case DOUBLE:
+						printf("DOUBLE");
+					break;
+				}
+				printf("\n");
+				#endif // CLI_MUTE
 				return 0;
-			}else{
-				printf("[FLAG]\n");
 			}
 		}else{
 			if(argv[*index][0] == '-')
@@ -697,10 +710,25 @@ int cli_arg_parser(cli_cmd_group *grp_list, int argc, char **argv, int *index){
 	for(; *index < argc; (*index)++){
 		if(tmp_arg == NULL) return 0;
 		int check_res = check_arg_type(grp_list, tmp_arg, argv[*index]);
-		if(check_res > -1){
-			printf("[ARG]\n");
-		}else{
-			printf("!!EXPECTED ARG!!\n");
+		if(check_res <= -1){
+			#ifndef CLI_MUTE
+			printf("Argument %s = '%s' requires argument of type ", tmp_arg->item.name, argv[*index]);
+			switch(tmp_arg->item.type){
+				case BOOL:
+					printf("BOOL");
+				break;
+				case STRING:
+					printf("STRING");
+				break;
+				case INT:
+					printf("INT");
+				break;
+				case DOUBLE:
+					printf("DOUBLE");
+				break;
+			}
+			printf("\n");
+			#endif // CLI_MUTE
 			return 0;
 		}
 		tmp_arg = tmp_arg->next;
@@ -714,7 +742,6 @@ int cli_cmd_parser(cli_cmd_list *cmd_head, int argc, char **argv, int *index){
 
 	cli_cmd_list *found_cmd = find_cmd_name(cmd_head, argv[*index]);
 	if(found_cmd != NULL){
-		printf("[CMD]\n");
 		(*index)++;
 		int res_opt = cli_opt_parser(found_cmd->item.cli_cmd_list_group, argc, argv, index);
 		int req_opt_ret = found_opt_req(found_cmd->item.cli_cmd_list_group);
@@ -740,7 +767,9 @@ int found_opt_req(cli_cmd_group *grp){
 	int exit_code_req = 0;
 
 	while(tmp_opt_req != NULL){
-		printf("[REQ OPT FOUND]: %s%s\n", tmp_opt_req->item->name_small, tmp_opt_req->item->name_big);
+		#ifndef CLI_MUTE
+		printf("Required Option found: %s%s\n", tmp_opt_req->item->name_small, tmp_opt_req->item->name_big);
+		#endif // CLI_MUTE
 		exit_code_req = 1;
 		tmp_opt_req = tmp_opt_req->next;
 	}
@@ -754,7 +783,9 @@ int found_arg_req(cli_cmd_group *grp){
 	int exit_code_req = 0;
 
 	while(tmp_arg_req != NULL){
-		printf("[REQ ARG FOUND]: %s\n", tmp_arg_req->item->name);
+		#ifndef CLI_MUTE
+		printf("Required Argument found: %s\n", tmp_arg_req->item->name);
+		#endif // CLI_MUTE
 		exit_code_req = 1;
 		tmp_arg_req = tmp_arg_req->next;
 	}
@@ -771,7 +802,9 @@ int cli_execute(cli_list *cli_list_obj, int argc, char **argv){
 	cli_cmd_list *tmp_cmd = tmp_list->cmd_head;
 
 	if(argc < 2){
+		#ifndef CLI_MUTE
 		cli_help_msg(cli_list_obj, argv);
+		#endif // CLI_MUTE
 		exit(1);
 	}
 
@@ -785,15 +818,12 @@ int cli_execute(cli_list *cli_list_obj, int argc, char **argv){
 
 	tmp_opt = tmp_opt->next;
 	int i = 1;
-	int opt_ret = !cli_opt_parser(cli_list_obj->opt_arg_grp, argc, argv, &i);
-	int req_opt_ret = found_opt_req(cli_list_obj->opt_arg_grp);
-	if(opt_ret || req_opt_ret)
-		return 0;
+	if(!cli_opt_parser(cli_list_obj->opt_arg_grp, argc, argv, &i)) return 0;
+	
+	if(found_opt_req(cli_list_obj->opt_arg_grp)) return 0;
 	int cmd_parse_res = cli_cmd_parser(tmp_cmd, argc, argv, &i);
 	if(cmd_parse_res == 0){
-		int arg_ret = cli_arg_parser(cli_list_obj->opt_arg_grp, argc, argv, &i);
-		int req_ret = !found_arg_req(cli_list_obj->opt_arg_grp);
-		return req_ret && arg_ret;
+		if(cli_arg_parser(cli_list_obj->opt_arg_grp, argc, argv, &i) && !found_arg_req(cli_list_obj->opt_arg_grp)) return 1;
 	}else if(cmd_parse_res == 1 && i == argc){
 		return 1;
 	}
