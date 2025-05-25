@@ -35,7 +35,7 @@ Options:
 #define DESCR_LENGTH 250
 
 //TODO: Add functions for add_req_... and remove_req_...
-#define CHECK(TYPE) \
+#define IMPLEMENT_IDENTICAL_FUNCTIONS(TYPE) \
 	int check_##TYPE##_type(cli_cmd_group *grp, cli_##TYPE##_list *tmp_##TYPE, char *argv){ \
 		switch(tmp_##TYPE->item.type){ \
 			case FLAG: \
@@ -537,8 +537,8 @@ cli_cmd_list* find_cmd_name(cli_cmd_list *cmd_list, char search_name[NAME_LENGTH
 	return NULL;
 }
 
-CHECK(arg)
-CHECK(opt)
+IMPLEMENT_IDENTICAL_FUNCTIONS(opt)
+IMPLEMENT_IDENTICAL_FUNCTIONS(arg)
 
 int cli_opt_parser(cli_cmd_group *grp_list, int argc, char **argv, int *index){
 	cli_opt_list *opt_head = grp_list->opt_head;
