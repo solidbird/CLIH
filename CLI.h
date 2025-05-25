@@ -34,6 +34,7 @@ Options:
 #define NAME_LENGTH 25
 #define DESCR_LENGTH 250
 
+//TODO: Add functions for add_req_... and remove_req_...
 #define CHECK(TYPE) \
 	int check_##TYPE##_type(cli_cmd_group *grp, cli_##TYPE##_list *tmp_##TYPE, char *argv){ \
 		switch(tmp_##TYPE->item.type){ \
