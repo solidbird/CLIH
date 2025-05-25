@@ -34,6 +34,125 @@ Options:
 #define NAME_LENGTH 25
 #define DESCR_LENGTH 250
 
+#define CHECK(TYPE) \
+	int check_##TYPE##_type(cli_cmd_group *grp, cli_##TYPE##_list *tmp_##TYPE, char *argv){ \
+		switch(tmp_##TYPE->item.type){ \
+			case FLAG: \
+				if(tmp_##TYPE->result == NULL){ \
+					tmp_##TYPE->result = malloc(sizeof(uint64_t)); \
+				} \
+				*tmp_##TYPE->result = 1; \
+				remove_req_##TYPE(&grp->TYPE##_req, &tmp_##TYPE->item); \
+				return -1; \
+			break; \
+			case BOOL: \
+				if(argv == NULL) return -2; \
+	\
+				char *bool_values[] = {"yes", "no", "true", "false", "y", "n"}; \
+				for(size_t i = 0; i < 6; i++){ \
+					if(!strcmp(bool_values[i], argv)){ \
+						if(tmp_##TYPE->result == NULL){ \
+							tmp_##TYPE->result = malloc(sizeof(uint64_t)); \
+						} \
+						if(!(i%2)){ \
+							*tmp_##TYPE->result = 1; \
+							remove_req_##TYPE(&grp->TYPE##_req, &tmp_##TYPE->item); \
+							return 0; \
+						}else if(i%2){ \
+							*tmp_##TYPE->result = 0; \
+							remove_req_##TYPE(&grp->TYPE##_req, &tmp_##TYPE->item); \
+							return 0; \
+						} \
+					} \
+				} \
+				return -2; \
+			break; \
+			case INT: \
+				if(argv == NULL) return -2; \
+	\
+				for(int i = 0; i < strlen(argv); i++){ \
+					if(!isdigit(argv[i])) \
+						return -2; \
+				} \
+				if(tmp_##TYPE->result == NULL){ \
+					tmp_##TYPE->result = malloc(sizeof(uint64_t)); \
+				} \
+				*tmp_##TYPE->result = atoi(argv); \
+				remove_req_##TYPE(&grp->TYPE##_req, &tmp_##TYPE->item); \
+				return 0; \
+			break; \
+			case DOUBLE: \
+				if(argv == NULL) return -2; \
+	\
+				char *endptr; \
+				double val = strtod(argv, &endptr); \
+				if (!strlen(endptr)){ \
+					if(tmp_##TYPE->result == NULL){ \
+						tmp_##TYPE->result = malloc(sizeof(uint64_t)); \
+					} \
+					*tmp_##TYPE->result = val; \
+					remove_req_##TYPE(&grp->TYPE##_req, &tmp_##TYPE->item); \
+					return 0; \
+				} \
+				return -2; \
+			break; \
+			case STRING: \
+				if(argv == NULL) return -2; \
+				if(tmp_##TYPE->result == NULL){ \
+					tmp_##TYPE->result = malloc(sizeof(uint64_t)); \
+				} \
+				*tmp_##TYPE->result = argv; \
+				remove_req_##TYPE(&grp->TYPE##_req, &tmp_##TYPE->item); \
+				return 0; \
+			break; \
+		} \
+	} \
+\
+\
+	void add_req_##TYPE(cli_req_##TYPE **list, cli_##TYPE##_item *item){ \
+		cli_req_##TYPE **tmp_req = list; \
+		if((*tmp_req) != NULL){ \
+			while((*tmp_req)->next != NULL){ \
+				(tmp_req) = &(*tmp_req)->next; \
+			} \
+	\
+			(*tmp_req)->next = malloc(sizeof(cli_req_##TYPE)); \
+			(*tmp_req)->next->prev = (*tmp_req); \
+			tmp_req = &(*tmp_req)->next; \
+	\
+		}else{ \
+	\
+			(*tmp_req) = malloc(sizeof(cli_req_##TYPE)); \
+		} \
+		(*tmp_req)->item = item; \
+	} \
+\
+\
+	void remove_req_##TYPE(cli_req_##TYPE **list, cli_##TYPE##_item *item){ \
+		cli_req_##TYPE **tmp_req = list; \
+		if(item == NULL) return; \
+		if((*tmp_req) == NULL) return; \
+	\
+		while((*tmp_req) != NULL){ \
+			if((*tmp_req)->item == item){ \
+				cli_req_##TYPE *tmp = (*tmp_req); \
+				if((*tmp_req)->next != NULL){ \
+					(*tmp_req)->next->prev = (*tmp_req)->prev; \
+				} \
+				if((*tmp_req)->prev != NULL){ \
+					(*tmp_req)->prev->next = (*tmp_req)->next; \
+				}else{ \
+					tmp = (*tmp_req); \
+					(*tmp_req) = (*tmp_req)->next; \
+				} \
+				*tmp = (cli_req_##TYPE){0}; \
+				free(tmp); \
+				break; \
+			} \
+			(tmp_req) = &(*tmp_req)->next; \
+		} \
+	}
+
 typedef enum cli_type {
 	FLAG,
 	BOOL,
@@ -417,244 +536,8 @@ cli_cmd_list* find_cmd_name(cli_cmd_list *cmd_list, char search_name[NAME_LENGTH
 	return NULL;
 }
 
-int check_arg_type(cli_cmd_group *grp, cli_arg_list *tmp_arg, char *argv){
-	switch(tmp_arg->item.type){
-		case FLAG:
-			if(tmp_arg->result == NULL){
-				tmp_arg->result = malloc(sizeof(uint64_t));
-			}
-			*tmp_arg->result = 1;
-			remove_req_arg(&grp->arg_req, &tmp_arg->item);
-			return -1;
-		break;
-		case BOOL:
-			if(argv == NULL) return -2;
-
-			char *bool_values[] = {"yes", "no", "true", "false", "y", "n"};
-			for(size_t i = 0; i < 6; i++){
-				//tolower(argv)
-				if(!strcmp(bool_values[i], argv)){
-					if(tmp_arg->result == NULL){
-						tmp_arg->result = malloc(sizeof(uint64_t));
-					}
-					if(!(i%2)){
-						*tmp_arg->result = 1;
-						remove_req_arg(&grp->arg_req, &tmp_arg->item);
-						return 0; 
-					}else if(i%2){
-						*tmp_arg->result = 0;
-						remove_req_arg(&grp->arg_req, &tmp_arg->item);
-						return 0; 
-					}
-				}
-			}
-			return -2;
-		break;
-		case INT:
-			if(argv == NULL) return -2;
-
-			for(int i = 0; i < strlen(argv); i++){
-				if(!isdigit(argv[i]))
-					return -2;
-			}
-			if(tmp_arg->result == NULL){
-				tmp_arg->result = malloc(sizeof(uint64_t));
-			}
-			*tmp_arg->result = atoi(argv);
-			remove_req_arg(&grp->arg_req, &tmp_arg->item);
-			return 0;
-		break;
-		case DOUBLE:
-			if(argv == NULL) return -2;
-
-			char *endptr;
-			double val = strtod(argv, &endptr);
-			if (!strlen(endptr)){
-				if(tmp_arg->result == NULL){
-					tmp_arg->result = malloc(sizeof(uint64_t));
-				}
-				*tmp_arg->result = val;
-				remove_req_arg(&grp->arg_req, &tmp_arg->item);
-				return 0;
-			}
-			return -2;
-		break;
-		case STRING:
-			if(argv == NULL) return -2;
-			if(tmp_arg->result == NULL){
-				tmp_arg->result = malloc(sizeof(uint64_t));
-			}
-			*tmp_arg->result = argv;
-			remove_req_arg(&grp->arg_req, &tmp_arg->item);
-			return 0;
-		break;
-	}
-}
-
-int check_opt_type(cli_cmd_group *grp, cli_opt_list *tmp_opt, char *argv){
-	switch(tmp_opt->item.type){
-		case FLAG:
-			if(tmp_opt->result == NULL){
-				tmp_opt->result = malloc(sizeof(uint64_t));
-			}
-			*tmp_opt->result = 1;
-			remove_req_opt(&grp->opt_req, &tmp_opt->item);
-			
-			return -1;
-		break;
-		case BOOL:
-			if(argv == NULL) return -2;
-			if(argv[0] == '-') return -2;
-
-			char *bool_values[] = {"yes", "no", "true", "false", "y", "n"};
-			for(size_t i = 0; i < 6; i++){
-				if(!strcmp(bool_values[i], argv)){
-					if(tmp_opt->result == NULL){
-						tmp_opt->result = malloc(sizeof(uint64_t));
-					}
-					if(!(i%2)){
-						*tmp_opt->result = 1;
-						remove_req_opt(&grp->opt_req, &tmp_opt->item);
-						return 0; 
-					}else if(i%2){
-						*tmp_opt->result = 0;
-						remove_req_opt(&grp->opt_req, &tmp_opt->item);
-						return 0; 
-					}
-				}
-			}
-			return -2;
-		break;
-		case INT:
-			if(argv == NULL) return -2;
-			if(argv[0] == '-') return -2;
-
-			for(int i = 0; i < strlen(argv); i++){
-				if(!isdigit(argv[i]))
-					return -2;
-			}
-			if(tmp_opt->result == NULL){
-				tmp_opt->result = malloc(sizeof(uint64_t));
-			}
-			*tmp_opt->result = atoi(argv);
-			remove_req_opt(&grp->opt_req, &tmp_opt->item);
-			return 0;
-		break;
-		case DOUBLE:
-			if(argv == NULL) return -2;
-			if(argv[0] == '-') return -2;
-
-			char *endptr;
-			double val = strtod(argv, &endptr);
-			if (!strlen(endptr)){
-				if(tmp_opt->result == NULL){
-					tmp_opt->result = malloc(sizeof(uint64_t));
-				}
-				*tmp_opt->result = val;
-				remove_req_opt(&grp->opt_req, &tmp_opt->item);
-				return 0;
-			}
-			return -2;
-		break;
-		case STRING:
-			if(argv == NULL) return -2;
-			if(argv[0] == '-') return -2;
-			if(tmp_opt->result == NULL){
-				tmp_opt->result = malloc(sizeof(uint64_t));
-			}
-			*tmp_opt->result = argv;
-			remove_req_opt(&grp->opt_req, &tmp_opt->item);
-
-			return 0;
-		break;
-	}
-}
-
-void add_req_arg(cli_req_arg **list, cli_arg_item *item){
-	cli_req_arg **tmp_req = list;
-	if((*tmp_req) != NULL){
-		while((*tmp_req)->next != NULL){
-			(tmp_req) = &(*tmp_req)->next;
-		}
-
-		(*tmp_req)->next = malloc(sizeof(cli_req_arg));
-		(*tmp_req)->next->prev = (*tmp_req);
-		tmp_req = &(*tmp_req)->next;
-
-	}else{
-	
-		(*tmp_req) = malloc(sizeof(cli_req_arg));
-	}
-	(*tmp_req)->item = item;
-}
-
-void remove_req_arg(cli_req_arg **list, cli_arg_item *item){
-	cli_req_arg **tmp_req = list;
-	if(item == NULL) return;
-	if((*tmp_req) == NULL) return;
-
-	while((*tmp_req) != NULL){
-		if((*tmp_req)->item == item){
-			cli_req_arg *tmp = (*tmp_req);
-			if((*tmp_req)->next != NULL){
-				(*tmp_req)->next->prev = (*tmp_req)->prev;
-			}
-			if((*tmp_req)->prev != NULL){
-				(*tmp_req)->prev->next = (*tmp_req)->next;
-			}else{
-				tmp = (*tmp_req);
-				(*tmp_req) = (*tmp_req)->next;
-			}
-			*tmp = (cli_req_arg){0};
-			free(tmp);
-			break;
-		}
-		(tmp_req) = &(*tmp_req)->next;
-	}
-}
-
-void add_req_opt(cli_req_opt **list, cli_opt_item *item){
-	cli_req_opt **tmp_req = list;
-	if((*tmp_req) != NULL){
-		while((*tmp_req)->next != NULL){
-			(tmp_req) = &(*tmp_req)->next;
-		}
-
-		(*tmp_req)->next = malloc(sizeof(cli_req_opt));
-		(*tmp_req)->next->prev = (*tmp_req);
-		tmp_req = &(*tmp_req)->next;
-
-	}else{
-	
-		(*tmp_req) = malloc(sizeof(cli_req_opt));
-	}
-	(*tmp_req)->item = item;
-}
-
-void remove_req_opt(cli_req_opt **list, cli_opt_item *item){
-	cli_req_opt **tmp_req = list;
-	if(item == NULL) return;
-	if((*tmp_req) == NULL) return;
-
-	while((*tmp_req) != NULL){
-		if((*tmp_req)->item == item){
-			cli_req_opt *tmp = (*tmp_req);
-			if((*tmp_req)->next != NULL){
-				(*tmp_req)->next->prev = (*tmp_req)->prev;
-			}
-			if((*tmp_req)->prev != NULL){
-				(*tmp_req)->prev->next = (*tmp_req)->next;
-			}else{
-				tmp = (*tmp_req);
-				(*tmp_req) = (*tmp_req)->next;
-			}
-			*tmp = (cli_req_opt){0};
-			free(tmp);
-			break;
-		}
-		(tmp_req) = &(*tmp_req)->next;
-	}
-}
+CHECK(arg)
+CHECK(opt)
 
 int cli_opt_parser(cli_cmd_group *grp_list, int argc, char **argv, int *index){
 	cli_opt_list *opt_head = grp_list->opt_head;
