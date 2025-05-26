@@ -34,7 +34,6 @@ Options:
 #define NAME_LENGTH 25
 #define DESCR_LENGTH 250
 
-//TODO: Add functions for add_req_... and remove_req_...
 #define IMPLEMENT_IDENTICAL_FUNCTIONS(TYPE) \
 	int check_##TYPE##_type(cli_cmd_group *grp, cli_##TYPE##_list *tmp_##TYPE, char *argv){ \
 		switch(tmp_##TYPE->item.type){ \
@@ -235,8 +234,6 @@ typedef struct cli_examples {
 	struct cli_examples *prev;
 } cli_examples;
 
-//TODO: dont let the user define a cmd_head and give it to the struct instead just allocate space for the cmd_head
-//		on init. That way we dont have any issue with dereferencing the cmd_head if the is deleted from the stack of the function
 typedef struct cli_list {
 	char prog_description[DESCR_LENGTH];
 	cli_cmd_group *opt_arg_grp;
@@ -366,7 +363,6 @@ int cli_grp_add_arg(cli_cmd_group *cli_group, cli_arg_item arg){
 }
 
 cli_cmd_group* cli_add_cmd_grp(cli_list *cli_list_obj, char *name, char *descr, char *help[2], void * func(cli_cmd_group*, cli_cmd_group*)){
-	//add new member of command item to cli_list_obj and add pointer of cli_cmd_list_group to that member
 	cli_cmd_list **tmp_list = &cli_list_obj->cmd_head;
 
 	if((*tmp_list) != NULL){
@@ -717,7 +713,6 @@ int cli_execute(cli_list *cli_list_obj, int argc, char **argv){
 }
 
 int cli_destroy(cli_list *cli_list_obj){
-	//TODO: Run through the lists and free every node at the end free the head node of each type
 	cli_opt_list *tmp_opt = cli_list_obj->opt_arg_grp->opt_head;
 	cli_arg_list *tmp_arg = cli_list_obj->opt_arg_grp->arg_head;
 	cli_cmd_group *tmp_grp = cli_list_obj->opt_arg_grp;
