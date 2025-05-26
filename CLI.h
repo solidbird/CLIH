@@ -639,7 +639,7 @@ int cli_arg_parser(cli_cmd_group *grp_list, int argc, char **argv, int *index){
 	return 1;
 }
 
-int cli_cmd_parser(cli_cmd_list *cmd_head, int argc, char **argv, int *index){
+int cli_cmd_parser(cli_cmd_group *master_grp, cli_cmd_list *cmd_head, int argc, char **argv, int *index){
 	if(*index >= argc) return 0;
 
 	cli_cmd_list *found_cmd = find_cmd_name(cmd_head, argv[*index]);
@@ -659,6 +659,10 @@ int cli_cmd_parser(cli_cmd_list *cmd_head, int argc, char **argv, int *index){
 			printf("Required Argument found: %s\n", req_arg->item->name);
 			return -1;
 		}
+		if(found_cmd->item.command_function != NULL){
+			found_cmd->item.command_function(master_grp, found_cmd->item.cli_cmd_list_group);
+		}
+
 		return 1;
 	}
 
@@ -675,12 +679,12 @@ int cli_execute(cli_list *cli_list_obj, int argc, char **argv){
 	
 	cli_cmd_group *grp = cli_list_obj->opt_arg_grp;
 	
-	if(argc < 2 && (grp->opt_req != NULL || grp->arg_req != NULL)){
+	/*if(argc < 2 && (grp->opt_req != NULL || grp->arg_req != NULL)){
 		#ifndef CLI_MUTE
 		cli_help_msg(cli_list_obj, argv);
 		#endif // CLI_MUTE
 		exit(1);
-	}
+	}*/
 
 	for(size_t i = 1; i < argc; i++){
 		if(strcmp((tmp_opt)->item.name_small, argv[i]) == 0 ||
@@ -697,7 +701,7 @@ int cli_execute(cli_list *cli_list_obj, int argc, char **argv){
 		printf("Required Option found: %s%s\n", grp->opt_req->item->name_small, grp->opt_req->item->name_big);
 		return 0;
 	}
-	int cmd_parse_res = cli_cmd_parser(tmp_cmd, argc, argv, &i);
+	int cmd_parse_res = cli_cmd_parser(grp, tmp_cmd, argc, argv, &i);
 	if(cmd_parse_res == 0){
 		if(!cli_arg_parser(cli_list_obj->opt_arg_grp, argc, argv, &i)) return 0;
 		if(grp->arg_req != NULL){ 
