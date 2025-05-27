@@ -242,7 +242,7 @@ typedef struct cli_list {
 } cli_list;
 
 
-int cli_init(cli_list *cli_list_obj, const char *program_desc, char *help[2]);
+cli_list * cli_init(const char *program_desc, char *help[2]);
 int cli_destroy(cli_list *cli_list_obj);
 //Options
 int cli_add_opt_basic(cli_cmd_group *cli_group, char *option_flag_small, char *option_flag_big, char *descr);
@@ -388,18 +388,19 @@ cli_cmd_group* cli_add_cmd_grp(cli_list *cli_list_obj, char *name, char *descr, 
 	return (*tmp_list)->item.cli_cmd_list_group;
 }
 
-int cli_init(cli_list *cli_list_obj, const char *program_desc, char *help[2]){
-	strncpy(cli_list_obj->prog_description, program_desc, DESCR_LENGTH);
-	cli_list_obj->opt_arg_grp = malloc(sizeof(cli_cmd_group));
-	cli_list_obj->cmd_head = NULL;
+cli_list * cli_init(const char *program_desc, char *help[2]){
+	cli_list *main = malloc(sizeof(cli_list));
+	strncpy(main->prog_description, program_desc, DESCR_LENGTH);
+	main->opt_arg_grp = malloc(sizeof(cli_cmd_group));
+	main->cmd_head = NULL;
 
 	if(help == NULL){
-		cli_add_opt(cli_list_obj->opt_arg_grp, (cli_opt_item){"-h", "--help", "Help option to show this message.", FLAG});
+		cli_add_opt(main->opt_arg_grp, (cli_opt_item){"-h", "--help", "Help option to show this message.", FLAG});
 	}else{
-		cli_add_opt(cli_list_obj->opt_arg_grp, (cli_opt_item){help[0], help[1], "Help option to show this message.", FLAG});
+		cli_add_opt(main->opt_arg_grp, (cli_opt_item){help[0], help[1], "Help option to show this message.", FLAG});
 	}
 
-	return 0;
+	return main;
 }
 
 int cli_display_help(char *help_option_small, char *help_option_big){}
@@ -808,6 +809,7 @@ int cli_destroy(cli_list *cli_list_obj){
 	if(tmp_grp != NULL){
 		free(tmp_grp);
 	}
+	free(cli_list_obj);
 }
 
 #endif // CLI_IMPLEMENTATION
