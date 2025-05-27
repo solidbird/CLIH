@@ -395,9 +395,9 @@ cli_list * cli_init(const char *program_desc, char *help[2]){
 	main->cmd_head = NULL;
 
 	if(help == NULL){
-		cli_add_opt(main->opt_arg_grp, (cli_opt_item){"-h", "--help", "Help option to show this message.", FLAG});
+		cli_add_opt(main->opt_arg_grp, (cli_opt_item){"-h", "--help", "Help option to show this message.", FLAG, 0});
 	}else{
-		cli_add_opt(main->opt_arg_grp, (cli_opt_item){help[0], help[1], "Help option to show this message.", FLAG});
+		cli_add_opt(main->opt_arg_grp, (cli_opt_item){help[0], help[1], "Help option to show this message.", FLAG, 0});
 	}
 
 	return main;
@@ -720,6 +720,8 @@ int cli_execute(cli_list *cli_list_obj, int argc, char **argv){
 int cli_destroy(cli_list *cli_list_obj){
 	cli_opt_list *tmp_opt = cli_list_obj->opt_arg_grp->opt_head;
 	cli_arg_list *tmp_arg = cli_list_obj->opt_arg_grp->arg_head;
+	cli_req_opt *tmp_opt_req = cli_list_obj->opt_arg_grp->opt_req;
+	cli_req_arg *tmp_arg_req = cli_list_obj->opt_arg_grp->arg_req;
 	cli_cmd_group *tmp_grp = cli_list_obj->opt_arg_grp;
 	cli_cmd_list *tmp_cmd = cli_list_obj->cmd_head;
 
@@ -742,6 +744,26 @@ int cli_destroy(cli_list *cli_list_obj){
 			cli_arg_list *tmp = tmp_arg;
 			free(tmp->result);
 			tmp_arg = tmp_arg->prev;
+			free(tmp);
+		}
+	}
+	if(tmp_opt_req != NULL){
+		while(tmp_opt_req->next != NULL){
+			tmp_opt_req = tmp_opt_req->next;
+		}
+		while(tmp_opt_req != NULL){
+			cli_req_opt *tmp = tmp_opt_req;
+			tmp_opt_req = tmp_opt_req->prev;
+			free(tmp);
+		}
+	}
+	if(tmp_arg_req != NULL){
+		while(tmp_arg_req->next != NULL){
+			tmp_arg_req = tmp_arg_req->next;
+		}
+		while(tmp_arg_req != NULL){
+			cli_req_arg *tmp = tmp_arg_req;
+			tmp_arg_req = tmp_arg_req->prev;
 			free(tmp);
 		}
 	}
