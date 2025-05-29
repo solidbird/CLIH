@@ -34,6 +34,9 @@ Options:
 #define NAME_LENGTH 25
 #define DESCR_LENGTH 250
 
+//TODO: Rather than make a cast with uint64_t to anything else I would rather introduce
+//		a union struct mix for "result" in a opt/arg. We kinda have something like that indirectly
+//		and with uint64_t only instead, but the casting around is kinda doing a mess.
 #define ANY_TYPE uint64_t
 
 typedef enum cli_type {
