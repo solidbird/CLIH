@@ -34,6 +34,8 @@ Options:
 #define NAME_LENGTH 25
 #define DESCR_LENGTH 250
 
+#define ANY_TYPE uint64_t
+
 typedef enum cli_type {
 	FLAG,
 	BOOL,
@@ -43,30 +45,30 @@ typedef enum cli_type {
 } cli_type;
 
 typedef struct cli_opt_item {
-	char name_small[NAME_LENGTH];
-	char name_big[NAME_LENGTH];
-	char description[DESCR_LENGTH];
+	char *name_small;
+	char *name_big;
+	char *description;
 	cli_type type;
 	int required;
 } cli_opt_item;
 
 typedef struct cli_arg_item {
-	char name[NAME_LENGTH];
-	char description[DESCR_LENGTH];
+	char *name;
+	char *description;
 	cli_type type;
 	int required;
 } cli_arg_item;
 
 typedef struct cli_opt_list {
 	cli_opt_item item;
-	uint64_t *result;
+	ANY_TYPE *result;
 	struct cli_opt_list *next;
 	struct cli_opt_list *prev;
 } cli_opt_list;
 
 typedef struct cli_arg_list {
 	cli_arg_item item;
-	uint64_t *result;
+	ANY_TYPE *result;
 	struct cli_arg_list *next;
 	struct cli_arg_list *prev;
 } cli_arg_list;
@@ -91,22 +93,22 @@ typedef struct cli_cmd_group {
 } cli_cmd_group;
 
 typedef struct cli_cmd_item {
-	char name[NAME_LENGTH];
-	char description[DESCR_LENGTH];
+	char *name;
+	char *description;
 	cli_cmd_group *cli_cmd_list_group;	
 	void* (*command_function)(cli_cmd_group *master_group, cli_cmd_group *cmd_group);
 } cli_cmd_item;
 
 typedef struct cli_cmd_list {
 	cli_cmd_item item;
-	uint64_t *result;
+	ANY_TYPE *result;
 	struct cli_cmd_list *next;
 	struct cli_cmd_list *prev;
 } cli_cmd_list;
 
 typedef struct cli_example_item {
-	char description[DESCR_LENGTH];
-	char file_path[DESCR_LENGTH];
+	char *description;
+	char *file_path;
 } cli_example_item;
 
 typedef struct cli_examples {
@@ -116,7 +118,7 @@ typedef struct cli_examples {
 } cli_examples;
 
 typedef struct cli_list {
-	char prog_description[DESCR_LENGTH];
+	char *prog_description;
 	cli_cmd_group *opt_arg_grp;
 	cli_cmd_list *cmd_head;
 	cli_examples *examples;
@@ -149,7 +151,7 @@ cli_cmd_list* find_cmd_name(cli_cmd_list *cmd_list, char *search_name);
 int check_opt_type(cli_cmd_group *grp, cli_opt_list *tmp_opt, char *argv);
 int check_arg_type(cli_cmd_group *grp, cli_arg_list *tmp_arg, char *argv);
 
-int cli_set_default(cli_cmd_group group_head, char* search_name, uint64_t default_value);
+int cli_set_default(cli_cmd_group group_head, char* search_name, ANY_TYPE default_value);
 void add_req_arg(cli_req_arg **list, cli_arg_item *item);
 void remove_req_arg(cli_req_arg **list, cli_arg_item *item);
 void add_req_opt(cli_req_opt **list, cli_opt_item *item);
@@ -158,7 +160,7 @@ void remove_req_opt(cli_req_opt **list, cli_opt_item *item);
 #ifdef CLI_IMPLEMENTATION
 //------------------------------------------------------
 
-int cli_set_default(cli_cmd_group group_head, char* search_name, uint64_t default_value){
+int cli_set_default(cli_cmd_group group_head, char* search_name, ANY_TYPE default_value){
 	cli_opt_list* found_opt = NULL;
 	cli_arg_list* found_arg = NULL;
 
@@ -169,12 +171,12 @@ int cli_set_default(cli_cmd_group group_head, char* search_name, uint64_t defaul
 	}
 
 	if(found_opt != NULL){
-		found_opt->result = malloc(sizeof(uint64_t));
-		*found_opt->result = default_value;
+		found_opt->result = malloc(sizeof(ANY_TYPE));
+		*found_opt->result = (ANY_TYPE)default_value;
 		return 1;
 	}else if(found_arg != NULL){
-		found_arg->result = malloc(sizeof(uint64_t));
-		*found_arg->result = default_value;
+		found_arg->result = malloc(sizeof(ANY_TYPE));
+		*found_arg->result = (ANY_TYPE)default_value;
 		return 1;
 	}else{
 		return 0;
@@ -444,7 +446,7 @@ int check_opt_type(cli_cmd_group *grp, cli_opt_list *tmp_opt, char *argv){
 	switch(tmp_opt->item.type){
 		case FLAG:
 			if(tmp_opt->result == NULL){
-				tmp_opt->result = malloc(sizeof(uint64_t));
+				tmp_opt->result = malloc(sizeof(ANY_TYPE));
 			}
 			*tmp_opt->result = 1;
 			remove_req_opt(&grp->opt_req, &tmp_opt->item);
@@ -457,7 +459,7 @@ int check_opt_type(cli_cmd_group *grp, cli_opt_list *tmp_opt, char *argv){
 			for(size_t i = 0; i < 6; i++){
 				if(!strcmp(bool_values[i], argv)){
 					if(tmp_opt->result == NULL){
-						tmp_opt->result = malloc(sizeof(uint64_t));
+						tmp_opt->result = malloc(sizeof(ANY_TYPE));
 					}
 					if(!(i%2)){
 						*tmp_opt->result = 1;
@@ -480,7 +482,7 @@ int check_opt_type(cli_cmd_group *grp, cli_opt_list *tmp_opt, char *argv){
 					return -2;
 			}
 			if(tmp_opt->result == NULL){
-				tmp_opt->result = malloc(sizeof(uint64_t));
+				tmp_opt->result = malloc(sizeof(ANY_TYPE));
 			}
 			*tmp_opt->result = atoi(argv);
 			remove_req_opt(&grp->opt_req, &tmp_opt->item);
@@ -493,7 +495,7 @@ int check_opt_type(cli_cmd_group *grp, cli_opt_list *tmp_opt, char *argv){
 			double val = strtod(argv, &endptr);
 			if (!strlen(endptr)){
 				if(tmp_opt->result == NULL){
-					tmp_opt->result = malloc(sizeof(uint64_t));
+					tmp_opt->result = malloc(sizeof(ANY_TYPE));
 				}
 				*tmp_opt->result = val;
 				remove_req_opt(&grp->opt_req, &tmp_opt->item);
@@ -504,9 +506,9 @@ int check_opt_type(cli_cmd_group *grp, cli_opt_list *tmp_opt, char *argv){
 		case STRING:
 			if(argv == NULL) return -2;
 			if(tmp_opt->result == NULL){
-				tmp_opt->result = malloc(sizeof(uint64_t));
+				tmp_opt->result = malloc(sizeof(ANY_TYPE));
 			}
-			*tmp_opt->result = argv;
+			*tmp_opt->result = (ANY_TYPE)argv;
 			remove_req_opt(&grp->opt_req, &tmp_opt->item);
 			return 0;
 		break;
@@ -560,7 +562,7 @@ int check_arg_type(cli_cmd_group *grp, cli_arg_list *tmp_arg, char *argv){
 	switch(tmp_arg->item.type){
 		case FLAG:
 			if(tmp_arg->result == NULL){
-				tmp_arg->result = malloc(sizeof(uint64_t));
+				tmp_arg->result = malloc(sizeof(ANY_TYPE));
 			}
 			*tmp_arg->result = 1;
 			remove_req_arg(&grp->arg_req, &tmp_arg->item);
@@ -573,7 +575,7 @@ int check_arg_type(cli_cmd_group *grp, cli_arg_list *tmp_arg, char *argv){
 			for(size_t i = 0; i < 6; i++){
 				if(!strcmp(bool_values[i], argv)){
 					if(tmp_arg->result == NULL){
-						tmp_arg->result = malloc(sizeof(uint64_t));
+						tmp_arg->result = malloc(sizeof(ANY_TYPE));
 					}
 					if(!(i%2)){
 						*tmp_arg->result = 1;
@@ -596,7 +598,7 @@ int check_arg_type(cli_cmd_group *grp, cli_arg_list *tmp_arg, char *argv){
 					return -2;
 			}
 			if(tmp_arg->result == NULL){
-				tmp_arg->result = malloc(sizeof(uint64_t));
+				tmp_arg->result = malloc(sizeof(ANY_TYPE));
 			}
 			*tmp_arg->result = atoi(argv);
 			remove_req_arg(&grp->arg_req, &tmp_arg->item);
@@ -609,7 +611,7 @@ int check_arg_type(cli_cmd_group *grp, cli_arg_list *tmp_arg, char *argv){
 			double val = strtod(argv, &endptr);
 			if (!strlen(endptr)){
 				if(tmp_arg->result == NULL){
-					tmp_arg->result = malloc(sizeof(uint64_t));
+					tmp_arg->result = malloc(sizeof(ANY_TYPE));
 				}
 				*tmp_arg->result = val;
 				remove_req_arg(&grp->arg_req, &tmp_arg->item);
@@ -620,9 +622,9 @@ int check_arg_type(cli_cmd_group *grp, cli_arg_list *tmp_arg, char *argv){
 		case STRING:
 			if(argv == NULL) return -2;
 			if(tmp_arg->result == NULL){
-				tmp_arg->result = malloc(sizeof(uint64_t));
+				tmp_arg->result = malloc(sizeof(ANY_TYPE));
 			}
-			*tmp_arg->result = argv;
+			*tmp_arg->result = (ANY_TYPE)argv;
 			remove_req_arg(&grp->arg_req, &tmp_arg->item);
 			return 0;
 		break;
