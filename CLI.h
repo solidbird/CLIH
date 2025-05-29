@@ -383,8 +383,11 @@ cli_cmd_group* cli_add_cmd_grp(cli_list *cli_list_obj, char *name, char *descr, 
 	strncpy((*tmp_list)->item.description, descr, DESCR_LENGTH);
 	(*tmp_list)->item.cli_cmd_list_group = malloc(sizeof(cli_cmd_group));
 	(*tmp_list)->item.command_function = func;
-	cli_grp_add_opt((*tmp_list)->item.cli_cmd_list_group, (cli_opt_item){help[0], help[1], "This is a help message.", FLAG});
-
+	if(help == NULL){
+		cli_grp_add_opt((*tmp_list)->item.cli_cmd_list_group, (cli_opt_item){"-h", "--help", "Help option to show this message in command.", FLAG, 0});
+	}else{
+		cli_grp_add_opt((*tmp_list)->item.cli_cmd_list_group, (cli_opt_item){help[0], help[1], "Help option to show this message in command.", FLAG, 0});
+	}
 	return (*tmp_list)->item.cli_cmd_list_group;
 }
 
@@ -498,7 +501,7 @@ int cli_help_msg(cli_list *cli_list_obj, char **argv){
 	if(tmp_arg){
 		printf("\nARGUMENTS:\n");
 		while(tmp_arg != NULL){
-			printf("%s%s\n",
+			printf("%s\t%s\n",
 				tmp_arg->item.name,
 				tmp_arg->item.description);
 			tmp_arg = tmp_arg->next;
@@ -508,7 +511,7 @@ int cli_help_msg(cli_list *cli_list_obj, char **argv){
 	if(tmp_cmd){
 		printf("\nCOMMANDS:\n");
 		while(tmp_cmd != NULL){
-			printf("%s%s\n",
+			printf("%s\t%s\n",
 				tmp_cmd->item.name,
 				tmp_cmd->item.description);
 			tmp_cmd = tmp_cmd->next;
@@ -653,7 +656,7 @@ int cli_cmd_parser(cli_cmd_group *master_grp, cli_cmd_list *cmd_head, int argc, 
 		cli_req_arg *req_arg = found_cmd->item.cli_cmd_list_group->arg_req;
 		if(!res_arg && req_arg != NULL) return -1;
 		if(req_opt != NULL){
-			printf("Required Option found: %s%s\n", req_opt->item->name_small, req_opt->item->name_big);
+			printf("Required Option found: (%s/%s)\n", req_opt->item->name_small, req_opt->item->name_big);
 			return -1;
 		}
 		if(req_arg != NULL){
@@ -699,7 +702,7 @@ int cli_execute(cli_list *cli_list_obj, int argc, char **argv){
 	int i = 1;
 	if(!cli_opt_parser(cli_list_obj->opt_arg_grp, argc, argv, &i)) return 0;
 	if(grp->opt_req != NULL){
-		printf("Required Option found: %s%s\n", grp->opt_req->item->name_small, grp->opt_req->item->name_big);
+		printf("Required Option found: (%s/%s)\n", grp->opt_req->item->name_small, grp->opt_req->item->name_big);
 		return 0;
 	}
 	int cmd_parse_res = cli_cmd_parser(grp, tmp_cmd, argc, argv, &i);
@@ -828,9 +831,7 @@ int cli_destroy(cli_list *cli_list_obj){
 			free(tmp);
 		}
 	}
-	if(tmp_grp != NULL){
-		free(tmp_grp);
-	}
+	free(tmp_grp);
 	free(cli_list_obj);
 }
 
