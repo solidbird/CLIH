@@ -717,29 +717,29 @@ int cli_opt_parser(cli_cmd_group *grp_list, int argc, char **argv, int *index){
 				(*index)++;
 			}else if(check_res == -2){
 				#ifndef CLI_MUTE
-				printf("Option '%s' requires argument of type ", argv[*index]);
+				fprintf(stderr, "Option '%s' requires argument of type ", argv[*index]);
 				switch(found_opt->item.type){
 					case BOOL:
-						printf("BOOL");
+						fprintf(stderr, "BOOL");
 					break;
 					case STRING:
-						printf("STRING");
+						fprintf(stderr, "STRING");
 					break;
 					case INT:
-						printf("INT");
+						fprintf(stderr, "INT");
 					break;
 					case DOUBLE:
-						printf("DOUBLE");
+						fprintf(stderr, "DOUBLE");
 					break;
 				}
-				printf("\n");
+				fprintf(stderr, "\n");
 				#endif // CLI_MUTE
 				return 0;
 			}
 		}else{
 			if(argv[*index][0] == '-'){
 				#ifndef CLI_MUTE
-				printf("Option '%s' not found.\n", argv[*index]);
+				fprintf(stderr, "Option '%s' not found.\n", argv[*index]);
 				#endif
 				return 0;
 			}
@@ -758,22 +758,22 @@ int cli_arg_parser(cli_cmd_group *grp_list, int argc, char **argv, int *index){
 		int check_res = check_arg_type(grp_list, tmp_arg, argv[*index]);
 		if(check_res <= -1){
 			#ifndef CLI_MUTE
-			printf("Argument %s = '%s' requires argument of type ", tmp_arg->item.name, argv[*index]);
+			fprintf(stderr, "Argument %s = '%s' requires argument of type ", tmp_arg->item.name, argv[*index]);
 			switch(tmp_arg->item.type){
 				case BOOL:
-					printf("BOOL");
+					fprintf(stderr, "BOOL");
 				break;
 				case STRING:
-					printf("STRING");
+					fprintf(stderr, "STRING");
 				break;
 				case INT:
-					printf("INT");
+					fprintf(stderr, "INT");
 				break;
 				case DOUBLE:
-					printf("DOUBLE");
+					fprintf(stderr, "DOUBLE");
 				break;
 			}
-			printf("\n");
+			fprintf(stderr, "\n");
 			#endif // CLI_MUTE
 			return 0;
 		}
@@ -796,11 +796,15 @@ int cli_cmd_parser(cli_cmd_group *master_grp, cli_cmd_list *cmd_head, int argc, 
 		cli_req_arg *req_arg = found_cmd->item.cli_cmd_list_group->arg_req;
 		if(!res_arg && req_arg != NULL) return -1;
 		if(req_opt != NULL){
-			printf("Required Option found: (%s/%s)\n", req_opt->item->name_small, req_opt->item->name_big);
+			#ifndef CLI_MUTE
+			fprintf(stderr, "Required Option found: (%s/%s)\n", req_opt->item->name_small, req_opt->item->name_big);
+			#endif
 			return -1;
 		}
 		if(req_arg != NULL){
-			printf("Required Argument found: %s\n", req_arg->item->name);
+			#ifndef CLI_MUTE
+			fprintf(stderr, "Required Argument found: %s\n", req_arg->item->name);
+			#endif
 			return -1;
 		}
 		if(found_cmd->item.command_function != NULL){
@@ -842,14 +846,18 @@ int cli_execute(cli_list *cli_list_obj, int argc, char **argv){
 	int i = 1;
 	if(!cli_opt_parser(cli_list_obj->opt_arg_grp, argc, argv, &i)) return 0;
 	if(grp->opt_req != NULL){
-		printf("Required Option found: (%s/%s)\n", grp->opt_req->item->name_small, grp->opt_req->item->name_big);
+		#ifndef CLI_MUTE
+		fprintf(stderr, "Required Option found: (%s/%s)\n", grp->opt_req->item->name_small, grp->opt_req->item->name_big);
+		#endif
 		return 0;
 	}
 	int cmd_parse_res = cli_cmd_parser(grp, tmp_cmd, argc, argv, &i);
 	if(cmd_parse_res == 0){
 		if(!cli_arg_parser(cli_list_obj->opt_arg_grp, argc, argv, &i)) return 0;
 		if(grp->arg_req != NULL){ 
-			printf("Required Argument found: %s\n", grp->arg_req->item->name);
+			#ifndef CLI_MUTE
+			fprintf(stderr, "Required Argument found: %s\n", grp->arg_req->item->name);
+			#endif
 			return 0;
 		}
 		return 1;
