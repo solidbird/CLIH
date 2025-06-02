@@ -2,6 +2,7 @@
  * This is how I imagine the output to lool like:
  * https://zetcode.com/python/click/
  * https://clig.dev
+ * https://stackoverflow.com/questions/70120431/how-would-i-fix-the-spacing-in-my-c-code-output
  *
 Usage: program [OPTIONS] FILE1 FILE2 TEST
 
@@ -37,8 +38,6 @@ Options:
 //TODO: Rather than make a cast with uint64_t to anything else I would rather introduce
 //		a union struct mix for "result" in a opt/arg. We kinda have something like that indirectly
 //		and with uint64_t only instead, but the casting around is kinda doing a mess.
-#define ANY_TYPE uint64_t
-
 typedef enum cli_type {
 	FLAG,
 	BOOL,
@@ -46,6 +45,14 @@ typedef enum cli_type {
 	DOUBLE,
 	STRING
 } cli_type;
+
+typedef union cli_result {
+	int f;
+	int b;
+	int i;
+	double d;
+	char *s;
+} cli_result;
 
 typedef struct cli_opt_item {
 	char *name_small;
@@ -64,14 +71,14 @@ typedef struct cli_arg_item {
 
 typedef struct cli_opt_list {
 	cli_opt_item item;
-	ANY_TYPE *result;
+	cli_result *result;
 	struct cli_opt_list *next;
 	struct cli_opt_list *prev;
 } cli_opt_list;
 
 typedef struct cli_arg_list {
 	cli_arg_item item;
-	ANY_TYPE *result;
+	cli_result *result;
 	struct cli_arg_list *next;
 	struct cli_arg_list *prev;
 } cli_arg_list;
@@ -104,7 +111,7 @@ typedef struct cli_cmd_item {
 
 typedef struct cli_cmd_list {
 	cli_cmd_item item;
-	ANY_TYPE *result;
+	cli_result *result;
 	struct cli_cmd_list *next;
 	struct cli_cmd_list *prev;
 } cli_cmd_list;
@@ -154,7 +161,7 @@ cli_cmd_list* find_cmd_name(cli_cmd_list *cmd_list, char *search_name);
 int check_opt_type(cli_cmd_group *grp, cli_opt_list *tmp_opt, char *argv);
 int check_arg_type(cli_cmd_group *grp, cli_arg_list *tmp_arg, char *argv);
 
-int cli_set_default(cli_cmd_group group_head, char* search_name, ANY_TYPE default_value);
+int cli_set_default(cli_cmd_group group_head, char* search_name, cli_result default_value);
 void add_req_arg(cli_req_arg **list, cli_arg_item *item);
 void remove_req_arg(cli_req_arg **list, cli_arg_item *item);
 void add_req_opt(cli_req_opt **list, cli_opt_item *item);
@@ -168,7 +175,7 @@ void _str_malloc_cpy(char **dest, char *src, size_t n){
 	strncpy(*dest, src, n);
 }
 
-int cli_set_default(cli_cmd_group group_head, char* search_name, ANY_TYPE default_value){
+int cli_set_default(cli_cmd_group group_head, char* search_name, cli_result default_value){
 	cli_opt_list* found_opt = NULL;
 	cli_arg_list* found_arg = NULL;
 
@@ -179,12 +186,12 @@ int cli_set_default(cli_cmd_group group_head, char* search_name, ANY_TYPE defaul
 	}
 
 	if(found_opt != NULL){
-		found_opt->result = malloc(sizeof(ANY_TYPE));
-		*found_opt->result = (ANY_TYPE)default_value;
+		found_opt->result = malloc(sizeof(cli_result));
+		*found_opt->result = (cli_result)default_value;
 		return 1;
 	}else if(found_arg != NULL){
-		found_arg->result = malloc(sizeof(ANY_TYPE));
-		*found_arg->result = (ANY_TYPE)default_value;
+		found_arg->result = malloc(sizeof(cli_result));
+		*found_arg->result = (cli_result)default_value;
 		return 1;
 	}else{
 		return 0;
@@ -469,9 +476,9 @@ int check_opt_type(cli_cmd_group *grp, cli_opt_list *tmp_opt, char *argv){
 	switch(tmp_opt->item.type){
 		case FLAG:
 			if(tmp_opt->result == NULL){
-				tmp_opt->result = malloc(sizeof(ANY_TYPE));
+				tmp_opt->result = malloc(sizeof(cli_result));
 			}
-			*tmp_opt->result = 1;
+			*tmp_opt->result = (cli_result) 1;
 			remove_req_opt(&grp->opt_req, &tmp_opt->item);
 			return -1;
 		break;
@@ -482,14 +489,14 @@ int check_opt_type(cli_cmd_group *grp, cli_opt_list *tmp_opt, char *argv){
 			for(size_t i = 0; i < 6; i++){
 				if(!strcmp(bool_values[i], argv)){
 					if(tmp_opt->result == NULL){
-						tmp_opt->result = malloc(sizeof(ANY_TYPE));
+						tmp_opt->result = malloc(sizeof(cli_result));
 					}
 					if(!(i%2)){
-						*tmp_opt->result = 1;
+						*tmp_opt->result = (cli_result) 1;
 						remove_req_opt(&grp->opt_req, &tmp_opt->item);
 						return 0;
 					}else if(i%2){
-						*tmp_opt->result = 0;
+						*tmp_opt->result = (cli_result) 0;
 						remove_req_opt(&grp->opt_req, &tmp_opt->item);
 						return 0;
 					}
@@ -505,9 +512,9 @@ int check_opt_type(cli_cmd_group *grp, cli_opt_list *tmp_opt, char *argv){
 					return -2;
 			}
 			if(tmp_opt->result == NULL){
-				tmp_opt->result = malloc(sizeof(ANY_TYPE));
+				tmp_opt->result = malloc(sizeof(cli_result));
 			}
-			*tmp_opt->result = atoi(argv);
+			*tmp_opt->result = (cli_result) atoi(argv);
 			remove_req_opt(&grp->opt_req, &tmp_opt->item);
 			return 0;
 		break;
@@ -518,9 +525,9 @@ int check_opt_type(cli_cmd_group *grp, cli_opt_list *tmp_opt, char *argv){
 			double val = strtod(argv, &endptr);
 			if (!strlen(endptr)){
 				if(tmp_opt->result == NULL){
-					tmp_opt->result = malloc(sizeof(ANY_TYPE));
+					tmp_opt->result = malloc(sizeof(cli_result));
 				}
-				*tmp_opt->result = val;
+				*tmp_opt->result = (cli_result) val;
 				remove_req_opt(&grp->opt_req, &tmp_opt->item);
 				return 0;
 			}
@@ -529,9 +536,9 @@ int check_opt_type(cli_cmd_group *grp, cli_opt_list *tmp_opt, char *argv){
 		case STRING:
 			if(argv == NULL) return -2;
 			if(tmp_opt->result == NULL){
-				tmp_opt->result = malloc(sizeof(ANY_TYPE));
+				tmp_opt->result = malloc(sizeof(cli_result));
 			}
-			*tmp_opt->result = (ANY_TYPE)argv;
+			*tmp_opt->result = (cli_result) argv;
 			remove_req_opt(&grp->opt_req, &tmp_opt->item);
 			return 0;
 		break;
@@ -587,9 +594,9 @@ int check_arg_type(cli_cmd_group *grp, cli_arg_list *tmp_arg, char *argv){
 	switch(tmp_arg->item.type){
 		case FLAG:
 			if(tmp_arg->result == NULL){
-				tmp_arg->result = malloc(sizeof(ANY_TYPE));
+				tmp_arg->result = malloc(sizeof(cli_result));
 			}
-			*tmp_arg->result = 1;
+			*tmp_arg->result = (cli_result) 1;
 			remove_req_arg(&grp->arg_req, &tmp_arg->item);
 			return -1;
 		break;
@@ -600,14 +607,14 @@ int check_arg_type(cli_cmd_group *grp, cli_arg_list *tmp_arg, char *argv){
 			for(size_t i = 0; i < 6; i++){
 				if(!strcmp(bool_values[i], argv)){
 					if(tmp_arg->result == NULL){
-						tmp_arg->result = malloc(sizeof(ANY_TYPE));
+						tmp_arg->result = malloc(sizeof(cli_result));
 					}
 					if(!(i%2)){
-						*tmp_arg->result = 1;
+						*tmp_arg->result = (cli_result) 1;
 						remove_req_arg(&grp->arg_req, &tmp_arg->item);
 						return 0;
 					}else if(i%2){
-						*tmp_arg->result = 0;
+						*tmp_arg->result = (cli_result) 0;
 						remove_req_arg(&grp->arg_req, &tmp_arg->item);
 						return 0;
 					}
@@ -623,9 +630,9 @@ int check_arg_type(cli_cmd_group *grp, cli_arg_list *tmp_arg, char *argv){
 					return -2;
 			}
 			if(tmp_arg->result == NULL){
-				tmp_arg->result = malloc(sizeof(ANY_TYPE));
+				tmp_arg->result = malloc(sizeof(cli_result));
 			}
-			*tmp_arg->result = atoi(argv);
+			*tmp_arg->result = (cli_result) atoi(argv);
 			remove_req_arg(&grp->arg_req, &tmp_arg->item);
 			return 0;
 		break;
@@ -636,9 +643,9 @@ int check_arg_type(cli_cmd_group *grp, cli_arg_list *tmp_arg, char *argv){
 			double val = strtod(argv, &endptr);
 			if (!strlen(endptr)){
 				if(tmp_arg->result == NULL){
-					tmp_arg->result = malloc(sizeof(ANY_TYPE));
+					tmp_arg->result = malloc(sizeof(cli_result));
 				}
-				*tmp_arg->result = val;
+				*tmp_arg->result = (cli_result) val;
 				remove_req_arg(&grp->arg_req, &tmp_arg->item);
 				return 0;
 			}
@@ -647,9 +654,9 @@ int check_arg_type(cli_cmd_group *grp, cli_arg_list *tmp_arg, char *argv){
 		case STRING:
 			if(argv == NULL) return -2;
 			if(tmp_arg->result == NULL){
-				tmp_arg->result = malloc(sizeof(ANY_TYPE));
+				tmp_arg->result = malloc(sizeof(cli_result));
 			}
-			*tmp_arg->result = (ANY_TYPE)argv;
+			*tmp_arg->result = (cli_result)argv;
 			remove_req_arg(&grp->arg_req, &tmp_arg->item);
 			return 0;
 		break;
