@@ -35,9 +35,9 @@ Options:
 #define NAME_LENGTH 25
 #define DESCR_LENGTH 250
 
-//TODO: Rather than make a cast with uint64_t to anything else I would rather introduce
-//		a union struct mix for "result" in a opt/arg. We kinda have something like that indirectly
-//		and with uint64_t only instead, but the casting around is kinda doing a mess.
+const char* BOLD_START = "\033[1m";
+const char* BOLD_END = "\033[0m";
+
 typedef enum cli_type {
 	FLAG,
 	BOOL,
@@ -168,9 +168,34 @@ void remove_req_arg(cli_req_arg **list, cli_arg_item *item);
 void add_req_opt(cli_req_opt **list, cli_opt_item *item);
 void remove_req_opt(cli_req_opt **list, cli_opt_item *item);
 int help_msg_found(cli_opt_list *opt_head, cli_opt_list *found_opt);
+void print_formatted(const char *str, int indent, int line_width);
+void print_space(int indent);
 
 #ifdef CLI_IMPLEMENTATION
 //------------------------------------------------------
+
+void print_space(int indent){
+	for (int j = 0; j < indent; j++) {
+		putchar(' ');
+	}
+}
+
+void print_formatted(const char *str, int indent, int line_width) {
+    int len = strlen(str);
+    int i = 0;
+
+    while (i < len) {
+		print_space(indent);
+
+        // Print up to 'line_width' characters or until the string ends
+        for (int k = 0; k < line_width && i < len; k++, i++) {
+            putchar(str[i]);
+        }
+
+        // Newline after each line
+        putchar('\n');
+    }
+}
 
 void _str_malloc_cpy(char **dest, char *src, size_t n){
 	*dest = (char*) malloc(n + 1);
@@ -393,12 +418,13 @@ int cli_help_msg_cmd(cli_cmd_item *cli_list_obj, char **argv){
 	cli_opt_list *tmp_opt = tmp_list->opt_head;
 	cli_arg_list *tmp_arg = tmp_list->arg_head;
 
-	printf("COMMAND: %s\n\t%s\n\n", cli_list_obj->name, cli_list_obj->description);
+
+	printf("%s %s\n\t%s\n\n", argv[0], cli_list_obj->name, cli_list_obj->description);
 
 	if(tmp_opt){
-		printf("OPTIONS:\n");
+		printf("%sOPTIONS:%s\n", BOLD_START, BOLD_END);
 		while(tmp_opt != NULL){
-			//printf("\t");
+			print_space(5);
 			if(tmp_opt->item.name_small != NULL){
 				printf("%s", tmp_opt->item.name_small);
 			}
@@ -408,17 +434,20 @@ int cli_help_msg_cmd(cli_cmd_item *cli_list_obj, char **argv){
 			if(tmp_opt->item.name_big != NULL){
 				printf("%s", tmp_opt->item.name_big);
 			}
-			printf("\t%s\n", tmp_opt->item.description);
+			//printf("\n%s\n", tmp_opt->item.description);
+			printf("\n");
+			print_formatted(tmp_opt->item.description, 8, 90);
 			tmp_opt = tmp_opt->next;
 		}
 	}
 	
 	if(tmp_arg){
-		printf("\nARGUMENTS:\n");
+		printf("\n%sARGUMENTS:%s\n", BOLD_START, BOLD_END);
 		while(tmp_arg != NULL){
-			printf("%s\t%s\n",
-				tmp_arg->item.name,
-				tmp_arg->item.description);
+			print_space(5);
+			printf("%s\n",
+				tmp_arg->item.name);
+			print_formatted(tmp_arg->item.description, 8, 90);
 			tmp_arg = tmp_arg->next;
 		}
 	}
@@ -433,9 +462,9 @@ int cli_help_msg(cli_list *cli_list_obj, char **argv){
 	printf("Usage: %s\n\t%s\n\n", argv[0], cli_list_obj->prog_description);
 
 	if(tmp_opt){
-		printf("OPTIONS:\n");
+		printf("%sOPTIONS:%s\n", BOLD_START, BOLD_END);
 		while(tmp_opt != NULL){
-			//printf("\t");
+			print_space(5);
 			if(tmp_opt->item.name_small != NULL){
 				printf("%s", tmp_opt->item.name_small);
 			}
@@ -445,27 +474,30 @@ int cli_help_msg(cli_list *cli_list_obj, char **argv){
 			if(tmp_opt->item.name_big != NULL){
 				printf("%s", tmp_opt->item.name_big);
 			}
-			printf("\t%s\n", tmp_opt->item.description);
+			printf("\n");
+			print_formatted(tmp_opt->item.description, 8, 90);
 			tmp_opt = tmp_opt->next;
 		}
 	}
 	
 	if(tmp_arg){
-		printf("\nARGUMENTS:\n");
+		printf("\n%sARGUMENTS:%s\n", BOLD_START, BOLD_END);
 		while(tmp_arg != NULL){
-			printf("%s\t%s\n",
-				tmp_arg->item.name,
-				tmp_arg->item.description);
+			print_space(5);
+			printf("%s\n",
+				tmp_arg->item.name);
+			print_formatted(tmp_arg->item.description, 8, 90);
 			tmp_arg = tmp_arg->next;
 		}
 	}
 
 	if(tmp_cmd){
-		printf("\nCOMMANDS:\n");
+		printf("\n%sCOMMANDS:%s\n", BOLD_START, BOLD_END);
 		while(tmp_cmd != NULL){
-			printf("%s\t%s\n",
-				tmp_cmd->item.name,
-				tmp_cmd->item.description);
+			print_space(5);
+			printf("%s\n",
+				tmp_cmd->item.name);
+			print_formatted(tmp_cmd->item.description, 8, 90);
 			tmp_cmd = tmp_cmd->next;
 		}
 	}
@@ -878,7 +910,8 @@ int cli_cmd_parser(cli_cmd_group *master_grp, cli_cmd_list *cmd_head, int argc, 
 }
 
 int help_msg_found(cli_opt_list *opt_head, cli_opt_list *node){
-	if(strcmp((opt_head)->item.name_small, node->item.name_small) == 0 ||
+	if(node->item.name_small == NULL || node->item.name_big == NULL) return 0;
+	if(strcmp((opt_head)->item.name_small, node->item.name_small) == 0 &&
 	strcmp((opt_head)->item.name_big, node->item.name_big) == 0){
 		return 1;
 	}
