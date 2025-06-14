@@ -46,19 +46,29 @@ typedef enum cli_type {
 	STRING
 } cli_type;
 
+typedef struct cli_type_block {
+	cli_type type;
+	size_t n;
+} cli_type_block;
+
 typedef union cli_result {
 	int f;
 	int b;
 	int i;
 	double d;
 	char *s;
+
+	int *lb;
+	int *li;
+	double *ld;
+	char **ls;
 } cli_result;
 
 typedef struct cli_opt_item {
 	char *name_small;
 	char *name_big;
 	char *description;
-	cli_type type;
+	cli_type_block type_block;
 	int required;
 } cli_opt_item;
 
@@ -159,7 +169,7 @@ cli_opt_list* find_opt_name(cli_opt_list *opt_list, char *search_name);
 cli_arg_list* find_arg_name(cli_arg_list *arg_list, char *search_name);
 cli_cmd_list* find_cmd_name(cli_cmd_list *cmd_list, char *search_name);
 
-int check_opt_type(cli_cmd_group *grp, cli_opt_list *tmp_opt, char *argv);
+int check_opt_type(cli_cmd_group *grp, cli_opt_list *tmp_opt, char *argv, int *list_index);
 int check_arg_type(cli_cmd_group *grp, cli_arg_list *tmp_arg, char *argv);
 
 int cli_set_default(cli_cmd_group group_head, char* search_name, cli_result default_value);
@@ -253,7 +263,7 @@ int cli_grp_add_opt(cli_cmd_group *cli_group, cli_opt_item opt){
 		(*tmp_list)->item.name_big[NAME_LENGTH] = 0;
 	}
 	_str_malloc_cpy(&(*tmp_list)->item.description, opt.description, DESCR_LENGTH);
-	(*tmp_list)->item.type = opt.type;
+	(*tmp_list)->item.type_block = opt.type_block;
 	(*tmp_list)->item.required = opt.required;
 
 	if(opt.required){
@@ -371,7 +381,7 @@ int cli_add_opt(cli_cmd_group *cli_group, cli_opt_item opt){
 		_str_malloc_cpy(&(*tmp_list)->item.name_big, opt.name_big, NAME_LENGTH);
 	}
 	_str_malloc_cpy(&(*tmp_list)->item.description, opt.description, DESCR_LENGTH);
-	(*tmp_list)->item.type = opt.type;
+	(*tmp_list)->item.type_block = opt.type_block;
 	(*tmp_list)->item.required = opt.required;
 
 	if(opt.required){
@@ -542,8 +552,8 @@ cli_cmd_list* find_cmd_name(cli_cmd_list *cmd_list, char *search_name){
 	return NULL;
 }
 
-int check_opt_type(cli_cmd_group *grp, cli_opt_list *tmp_opt, char *argv){
-	switch(tmp_opt->item.type){
+int check_opt_type(cli_cmd_group *grp, cli_opt_list *tmp_opt, char *argv, int *list_index){
+	switch(tmp_opt->item.type_block.type){
 		case FLAG:
 			if(tmp_opt->result == NULL){
 				tmp_opt->result = malloc(sizeof(cli_result));
@@ -584,8 +594,15 @@ int check_opt_type(cli_cmd_group *grp, cli_opt_list *tmp_opt, char *argv){
 			if(tmp_opt->result == NULL){
 				tmp_opt->result = malloc(sizeof(cli_result));
 			}
-			*tmp_opt->result = (cli_result) atoi(argv);
-			remove_req_opt(&grp->opt_req, &tmp_opt->item);
+			if(list_index == NULL){
+				*tmp_opt->result = (cli_result) atoi(argv);
+				remove_req_opt(&grp->opt_req, &tmp_opt->item);
+			}else{
+				(*tmp_opt->result).li[*list_index] = atoi(argv);
+				if(*list_index == tmp_opt->item.type_block.n - 1){
+					remove_req_opt(&grp->opt_req, &tmp_opt->item);
+				}
+			}
 			return 0;
 		break;
 		case DOUBLE:
@@ -597,8 +614,15 @@ int check_opt_type(cli_cmd_group *grp, cli_opt_list *tmp_opt, char *argv){
 				if(tmp_opt->result == NULL){
 					tmp_opt->result = malloc(sizeof(cli_result));
 				}
-				*tmp_opt->result = (cli_result) val;
-				remove_req_opt(&grp->opt_req, &tmp_opt->item);
+				if(list_index == NULL){
+					*tmp_opt->result = (cli_result) val;
+					remove_req_opt(&grp->opt_req, &tmp_opt->item);
+				}else{
+					(*tmp_opt->result).ld[*list_index] = val;
+					if(*list_index == tmp_opt->item.type_block.n - 1){
+						remove_req_opt(&grp->opt_req, &tmp_opt->item);
+					}
+				}
 				return 0;
 			}
 			return -2;
@@ -608,8 +632,16 @@ int check_opt_type(cli_cmd_group *grp, cli_opt_list *tmp_opt, char *argv){
 			if(tmp_opt->result == NULL){
 				tmp_opt->result = malloc(sizeof(cli_result));
 			}
-			*tmp_opt->result = (cli_result) argv;
-			remove_req_opt(&grp->opt_req, &tmp_opt->item);
+			if(list_index == NULL){
+				*tmp_opt->result = (cli_result) argv;
+				remove_req_opt(&grp->opt_req, &tmp_opt->item);
+			}else{
+				//TODO: if argv contains '-' at the start then return -2 here.
+				(*tmp_opt->result).ls[*list_index] = argv;
+				if(*list_index == tmp_opt->item.type_block.n - 1){
+					remove_req_opt(&grp->opt_req, &tmp_opt->item);
+				}
+			}
 			return 0;
 		break;
 	}
@@ -778,6 +810,69 @@ void remove_req_arg(cli_req_arg **list, cli_arg_item *item){
 	}
 }
 
+void allocate_result_list(cli_opt_list *node){
+	node->result = malloc(sizeof(cli_result));
+	memset(node->result, 0, sizeof(cli_result));
+	switch(node->item.type_block.type){
+		case INT:
+			node->result->li = malloc(sizeof(int) * node->item.type_block.n);
+			break;
+		case BOOL:
+			node->result->lb = malloc(sizeof(int) * node->item.type_block.n);
+			break;
+		case DOUBLE:
+			node->result->ld = malloc(sizeof(double) * node->item.type_block.n);
+			break;
+		case STRING:
+			node->result->ls = malloc(sizeof(char*) * (node->item.type_block.n + 1));
+			for(size_t i = 0; i < node->item.type_block.n + 1; i++){
+				node->result->ls[i] = NULL;
+			}
+			break;
+	}
+}
+
+int insert_result(cli_cmd_group *grp_list, cli_opt_list *found_opt, int argc, char **argv, int *arg_index, int *list_index){
+	int check_res = 0;
+	if(*arg_index + 1 < argc){
+		check_res = check_opt_type(grp_list, found_opt, argv[*arg_index+1], list_index);
+	}else{
+		check_res = check_opt_type(grp_list, found_opt, NULL, list_index);
+	}
+	if(check_res > -1){
+		(*arg_index)++;
+	}else if(check_res == -2){
+		#ifndef CLI_MUTE
+		if(list_index == NULL){
+			fprintf(stderr, "Option '%s' requires argument of type ", argv[*arg_index]);
+		}else{
+			fprintf(stderr, "Option '%s' requires argument of list type ", found_opt->item.name_small == NULL ? found_opt->item.name_big : found_opt->item.name_small);
+		}
+		switch(found_opt->item.type_block.type){
+			case BOOL:
+				fprintf(stderr, "BOOL");
+			break;
+			case STRING:
+				fprintf(stderr, "STRING");
+			break;
+			case INT:
+				fprintf(stderr, "INT");
+			break;
+			case DOUBLE:
+				fprintf(stderr, "DOUBLE");
+			break;
+		}
+		if(list_index == NULL){
+			fprintf(stderr, "\n");
+		}else{
+			fprintf(stderr, " at index [%d]\n", *list_index);
+		}
+		#endif // CLI_MUTE
+		return 0;
+	}
+	return 1;
+}
+
 int cli_opt_parser(cli_list *list, cli_cmd_item *grp, int argc, char **argv, int *index){
 	cli_cmd_group *grp_list;
 	if(list != NULL){
@@ -798,35 +893,20 @@ int cli_opt_parser(cli_list *list, cli_cmd_item *grp, int argc, char **argv, int
 				}
 				exit(0);
 			}
-			
-			int check_res = 0;
-			if(*index + 1 < argc){
-				check_res = check_opt_type(grp_list, found_opt, argv[*index+1]);
-			}else{
-				check_res = check_opt_type(grp_list, found_opt, NULL);
-			}
-			if(check_res > -1){
-				(*index)++;
-			}else if(check_res == -2){
-				#ifndef CLI_MUTE
-				fprintf(stderr, "Option '%s' requires argument of type ", argv[*index]);
-				switch(found_opt->item.type){
-					case BOOL:
-						fprintf(stderr, "BOOL");
-					break;
-					case STRING:
-						fprintf(stderr, "STRING");
-					break;
-					case INT:
-						fprintf(stderr, "INT");
-					break;
-					case DOUBLE:
-						fprintf(stderr, "DOUBLE");
-					break;
+			if(found_opt->item.type_block.n == 0){
+				if(!insert_result(grp_list, found_opt, argc, argv, index, NULL)){
+					return 0;
 				}
-				fprintf(stderr, "\n");
-				#endif // CLI_MUTE
-				return 0;
+			}else if(found_opt->item.type_block.n > 0){
+				int *list_index = malloc(sizeof(int));
+				allocate_result_list(found_opt);
+				for(int i = 0; i < found_opt->item.type_block.n; i++){
+					*list_index = i;
+					if(!insert_result(grp_list, found_opt, argc, argv, index, list_index)){
+						return 0;
+					}
+				}
+				free(list_index);
 			}
 		}else{
 			if(argv[*index][0] == '-'){
@@ -968,7 +1048,7 @@ int cli_destroy(cli_list *cli_list_obj){
 	cli_req_arg *tmp_arg_req = cli_list_obj->opt_arg_grp->arg_req;
 	cli_cmd_group *tmp_grp = cli_list_obj->opt_arg_grp;
 	cli_cmd_list *tmp_cmd = cli_list_obj->cmd_head;
-
+	//TODO: cleanup result->ls allocated memory
 	if(tmp_opt != NULL){
 		while(tmp_opt->next != NULL){
 			tmp_opt = tmp_opt->next;
