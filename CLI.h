@@ -636,7 +636,9 @@ int check_opt_type(cli_cmd_group *grp, cli_opt_list *tmp_opt, char *argv, int *l
 				*tmp_opt->result = (cli_result) argv;
 				remove_req_opt(&grp->opt_req, &tmp_opt->item);
 			}else{
-				//TODO: if argv contains '-' at the start then return -2 here.
+				if(argv[0] == '-'){
+					return -2;
+				}
 				(*tmp_opt->result).ls[*list_index] = argv;
 				if(*list_index == tmp_opt->item.type_block.n - 1){
 					remove_req_opt(&grp->opt_req, &tmp_opt->item);
