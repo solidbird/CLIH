@@ -1009,9 +1009,9 @@ int insert_result_arg(cli_cmd_group *grp_list, cli_arg_list *tmp_arg, int argc, 
 	if(check_res <= -1){
 		#ifndef CLI_MUTE
 		if(list_index == NULL){
-			fprintf(stderr, "Option '%s' requires argument of type ", argv[*arg_index]);
+			fprintf(stderr, "Argument '%s' requires type ", argv[*arg_index]);
 		}else{
-			fprintf(stderr, "Option '%s' requires argument of list type ", tmp_arg->item.name);
+			fprintf(stderr, "Argument '%s' requires list type ", tmp_arg->item.name);
 		}
 		fprintf_type(stderr, tmp_arg->item.type_block.type, tmp_arg->item.type_block.n);
 		if(list_index == NULL){
