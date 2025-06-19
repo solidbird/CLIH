@@ -48,7 +48,7 @@ typedef enum cli_type {
 
 typedef struct cli_type_block {
 	cli_type type;
-	size_t n;
+	int n;
 } cli_type_block;
 
 typedef union cli_result {
@@ -183,6 +183,45 @@ void print_space(int indent);
 
 #ifdef CLI_IMPLEMENTATION
 //------------------------------------------------------
+
+void fprintf_type(FILE *fd, cli_type type, int list_n){
+	char buf[256];
+	switch(type){
+		case FLAG:
+				snprintf(buf, sizeof(buf), "FLAG");
+			break;
+		case BOOL:
+			if(list_n){
+				snprintf(buf, sizeof(buf), "BOOL_LIST[%d]", list_n);
+			}else{
+				snprintf(buf, sizeof(buf), "BOOL");
+			}
+			break;
+		case INT:
+			if(list_n){
+				snprintf(buf, sizeof(buf), "INT_LIST[%d]", list_n);
+			}else{
+				snprintf(buf, sizeof(buf), "INT");
+			}
+			break;
+		case DOUBLE:
+			if(list_n){
+				snprintf(buf, sizeof(buf), "DOUBLE_LIST[%d]", list_n);
+			}else{
+				snprintf(buf, sizeof(buf), "DOUBLE");
+			}
+			break;
+		case STRING:
+			if(list_n){
+				snprintf(buf, sizeof(buf), "STRING_LIST[%d]", list_n);
+			}else{
+				snprintf(buf, sizeof(buf), "STRING");
+			}
+			break;
+	}
+	fprintf(fd, "%s", buf);
+	return;
+}
 
 void print_space(int indent){
 	for (int j = 0; j < indent; j++) {
@@ -482,8 +521,9 @@ int cli_help_msg(cli_list *cli_list_obj, char **argv){
 				printf(", ");
 			}
 			if(tmp_opt->item.name_big != NULL){
-				printf("%s", tmp_opt->item.name_big);
+				printf("%s ", tmp_opt->item.name_big);
 			}
+			fprintf_type(stdout, tmp_opt->item.type_block.type, tmp_opt->item.type_block.n);
 			printf("\n");
 			print_formatted(tmp_opt->item.description, 8, 90);
 			tmp_opt = tmp_opt->next;
@@ -494,8 +534,9 @@ int cli_help_msg(cli_list *cli_list_obj, char **argv){
 		printf("\n%sARGUMENTS:%s\n", BOLD_START, BOLD_END);
 		while(tmp_arg != NULL){
 			print_space(5);
-			printf("%s\n",
-				tmp_arg->item.name);
+			printf("%s ", tmp_arg->item.name);
+			fprintf_type(stdout, tmp_arg->item.type_block.type, tmp_arg->item.type_block.n);
+			printf("\n");
 			print_formatted(tmp_arg->item.description, 8, 90);
 			tmp_arg = tmp_arg->next;
 		}
@@ -903,24 +944,11 @@ int insert_result_opt(cli_cmd_group *grp_list, cli_opt_list *found_opt, int argc
 		}else{
 			fprintf(stderr, "Option '%s' requires argument of list type ", found_opt->item.name_small == NULL ? found_opt->item.name_big : found_opt->item.name_small);
 		}
-		switch(found_opt->item.type_block.type){
-			case BOOL:
-				fprintf(stderr, "BOOL");
-			break;
-			case STRING:
-				fprintf(stderr, "STRING");
-			break;
-			case INT:
-				fprintf(stderr, "INT");
-			break;
-			case DOUBLE:
-				fprintf(stderr, "DOUBLE");
-			break;
-		}
+		fprintf_type(stderr, found_opt->item.type_block.type, found_opt->item.type_block.n);	
 		if(list_index == NULL){
 			fprintf(stderr, "\n");
 		}else{
-			fprintf(stderr, " at index [%d]\n", *list_index);
+			fprintf(stderr, " at position %d\n", *list_index);
 		}
 		#endif // CLI_MUTE
 		return 0;
@@ -985,24 +1013,11 @@ int insert_result_arg(cli_cmd_group *grp_list, cli_arg_list *tmp_arg, int argc, 
 		}else{
 			fprintf(stderr, "Option '%s' requires argument of list type ", tmp_arg->item.name);
 		}
-		switch(tmp_arg->item.type_block.type){
-			case BOOL:
-				fprintf(stderr, "BOOL");
-			break;
-			case STRING:
-				fprintf(stderr, "STRING");
-			break;
-			case INT:
-				fprintf(stderr, "INT");
-			break;
-			case DOUBLE:
-				fprintf(stderr, "DOUBLE");
-			break;
-		}
+		fprintf_type(stderr, tmp_arg->item.type_block.type, tmp_arg->item.type_block.n);
 		if(list_index == NULL){
 			fprintf(stderr, "\n");
 		}else{
-			fprintf(stderr, " at index [%d]\n", *list_index);
+			fprintf(stderr, " at position %d\n", *list_index);
 		}
 		#endif // CLI_MUTE
 		return 0;
@@ -1010,6 +1025,14 @@ int insert_result_arg(cli_cmd_group *grp_list, cli_arg_list *tmp_arg, int argc, 
 	return 1;
 }
 
+//TODO: Maybe think about a way of changing the ARG positions based on them being required
+//		but only if the minimal number of requirements are met
+// 		exp: 
+// 								arg0 arg1[req] arg2 arg3[req]
+// 			only 2 arg given -> arg1[req] arg3[req]
+// 			only 3 arg given -> error ??? maybe
+// 								arg1[req] arg3[req]
+//
 int cli_arg_parser(cli_cmd_group *grp_list, int argc, char **argv, int *index){
 	if(*index >= argc) return 1;
 
@@ -1032,6 +1055,22 @@ int cli_arg_parser(cli_cmd_group *grp_list, int argc, char **argv, int *index){
 			}
 			(*index)--;
 			free(list_index);
+		}else{
+			tmp_arg->item.type_block.n = argc - *index;
+			int *list_index = malloc(sizeof(int));
+			*list_index = *index;
+			int check_res = 0;
+			allocate_result_list_arg(tmp_arg);
+			for(int i = 0; i < argc - *index; i++){
+				check_res = check_arg_type(grp_list, tmp_arg, argv[*index + i], list_index);
+				if(check_res <= -1){ 
+					fprintf(stderr, "Wrong type '%s' at index [%d].\n", argv[*index + i], i);
+					break;
+				}
+			}
+			free(list_index);
+			*index = argc;
+			return check_res > -1;
 		}
 		tmp_arg = tmp_arg->next;
 	}
@@ -1047,10 +1086,10 @@ int cli_cmd_parser(cli_cmd_group *master_grp, cli_cmd_list *cmd_head, int argc, 
 		(*index)++;
 		int res_opt = cli_opt_parser(NULL, &found_cmd->item, argc, argv, index);
 		cli_req_opt *req_opt = found_cmd->item.cli_cmd_list_group->opt_req;
-		if(!res_opt && req_opt != NULL) return -1;
+		if(!res_opt || req_opt != NULL) return -1;
 		int res_arg = cli_arg_parser(found_cmd->item.cli_cmd_list_group, argc, argv, index);
 		cli_req_arg *req_arg = found_cmd->item.cli_cmd_list_group->arg_req;
-		if(!res_arg && req_arg != NULL) return -1;
+		if(!res_arg || req_arg != NULL) return -1;
 		if(req_opt != NULL){
 			#ifndef CLI_MUTE
 			fprintf(stderr, "Required Option found: (%s/%s)\n", req_opt->item->name_small, req_opt->item->name_big);
