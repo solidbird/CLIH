@@ -1068,12 +1068,14 @@ int cli_arg_parser(cli_cmd_group *grp_list, int argc, char **argv, int *index){
 			int *list_index = malloc(sizeof(int));
 			int check_res = 0;
 			allocate_result_list_arg(tmp_arg);
-			for(int i = 0; i < argc - *index; i++){
+			for(int i = 0; i < tmp_arg->item.type_block.n; i++){
 				*list_index = i;
 				if(!insert_result_arg(grp_list, tmp_arg, argc, argv, index, list_index)){
 					return 0;
 				}
+				(*index)++;
 			}
+			(*index)--;
 			free(list_index);
 			*index = argc;
 			return check_res > -1;
