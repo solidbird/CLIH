@@ -1070,10 +1070,8 @@ int cli_arg_parser(cli_cmd_group *grp_list, int argc, char **argv, int *index){
 			allocate_result_list_arg(tmp_arg);
 			for(int i = 0; i < argc - *index; i++){
 				*list_index = i;
-				check_res = check_arg_type(grp_list, tmp_arg, argv[*index + i], list_index);
-				if(check_res <= -1){ 
-					fprintf(stderr, "Wrong type '%s' at index [%d].\n", argv[*index + i], i);
-					break;
+				if(!insert_result_arg(grp_list, tmp_arg, argc, argv, index, list_index)){
+					return 0;
 				}
 			}
 			free(list_index);
@@ -1094,10 +1092,10 @@ int cli_cmd_parser(cli_cmd_group *master_grp, cli_cmd_list *cmd_head, int argc, 
 		(*index)++;
 		int res_opt = cli_opt_parser(NULL, &found_cmd->item, argc, argv, index);
 		cli_req_opt *req_opt = found_cmd->item.cli_cmd_list_group->opt_req;
-		if(!res_opt || req_opt != NULL) return -1;
+		if(!res_opt && req_opt != NULL) return -1;
 		int res_arg = cli_arg_parser(found_cmd->item.cli_cmd_list_group, argc, argv, index);
 		cli_req_arg *req_arg = found_cmd->item.cli_cmd_list_group->arg_req;
-		if(!res_arg || req_arg != NULL) return -1;
+		if(!res_arg && req_arg != NULL) return -1;
 		if(req_opt != NULL){
 			#ifndef CLI_MUTE
 			fprintf(stderr, "Required Option found: (%s/%s)\n", req_opt->item->name_small, req_opt->item->name_big);
