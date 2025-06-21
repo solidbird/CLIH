@@ -832,8 +832,16 @@ int check_arg_type(cli_cmd_group *grp, cli_arg_list *tmp_arg, char *argv, int *l
 			if(tmp_arg->result == NULL){
 				tmp_arg->result = malloc(sizeof(cli_result));
 			}
-			*tmp_arg->result = (cli_result)argv;
-			remove_req_arg(&grp->arg_req, &tmp_arg->item);
+			if(list_index == NULL){
+				*tmp_arg->result = (cli_result) argv;
+				strcpy(tmp_arg->result->s, argv);
+				remove_req_arg(&grp->arg_req, &tmp_arg->item);
+			}else{
+				strcpy(tmp_arg->result->ls[*list_index], argv);
+				if(*list_index == tmp_arg->item.type_block.n - 1){
+					remove_req_arg(&grp->arg_req, &tmp_arg->item);
+				}
+			}
 			return 0;
 		break;
 	}
@@ -900,7 +908,7 @@ void allocate_result_list_arg(cli_arg_list *node){
 		case STRING:
 			node->result->ls = malloc(sizeof(char*) * (node->item.type_block.n + 1));
 			for(size_t i = 0; i < node->item.type_block.n + 1; i++){
-				node->result->ls[i] = NULL;
+				node->result->ls[i] = malloc(sizeof(char) * DESCR_LENGTH);
 			}
 			break;
 	}
@@ -1058,10 +1066,10 @@ int cli_arg_parser(cli_cmd_group *grp_list, int argc, char **argv, int *index){
 		}else{
 			tmp_arg->item.type_block.n = argc - *index;
 			int *list_index = malloc(sizeof(int));
-			*list_index = *index;
 			int check_res = 0;
 			allocate_result_list_arg(tmp_arg);
 			for(int i = 0; i < argc - *index; i++){
+				*list_index = i;
 				check_res = check_arg_type(grp_list, tmp_arg, argv[*index + i], list_index);
 				if(check_res <= -1){ 
 					fprintf(stderr, "Wrong type '%s' at index [%d].\n", argv[*index + i], i);
