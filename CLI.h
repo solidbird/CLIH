@@ -117,6 +117,7 @@ typedef struct cli_cmd_item {
 	char *description;
 	cli_cmd_group *cli_cmd_list_group;	
 	void* (*command_function)(cli_cmd_group *master_group, cli_cmd_group *cmd_group, void *args);
+	void* func_args;
 } cli_cmd_item;
 
 typedef struct cli_cmd_list {
@@ -154,7 +155,7 @@ int cli_add_opt(cli_cmd_group *cli_group, cli_opt_item opt);
 int cli_add_arg_basic(cli_list* cli_list_obj, char *argument_name, char *descr);
 int cli_add_arg(cli_cmd_group *cli_group, cli_arg_item arg);
 //Commands
-cli_cmd_group* cli_add_cmd_grp(cli_list *cli_list_obj, char *name, char *descr, char *help[2], void * func(cli_cmd_group*, cli_cmd_group*, void*));
+cli_cmd_group* cli_add_cmd_grp(cli_list *cli_list_obj, char *name, char *descr, char *help[2], void * func(cli_cmd_group*, cli_cmd_group*, void*), void *func_args);
 int cli_grp_add_opt_basic(cli_cmd_group *cli_group, char *option_flag_small, char *option_flag_big, char *descr);
 int cli_grp_add_opt(cli_cmd_group *cli_group, cli_opt_item opt);
 int cli_grp_add_arg_basic(cli_cmd_group *cli_group, char *name, char *descr);
@@ -343,7 +344,7 @@ int cli_grp_add_arg(cli_cmd_group *cli_group, cli_arg_item arg){
 	return 0;
 }
 
-cli_cmd_group* cli_add_cmd_grp(cli_list *cli_list_obj, char *name, char *descr, char *help[2], void * func(cli_cmd_group*, cli_cmd_group*)){
+cli_cmd_group* cli_add_cmd_grp(cli_list *cli_list_obj, char *name, char *descr, char *help[2], void * func(cli_cmd_group*, cli_cmd_group*), void *func_args){
 	cli_cmd_list **tmp_list = &cli_list_obj->cmd_head;
 
 	if((*tmp_list) != NULL){
@@ -367,6 +368,7 @@ cli_cmd_group* cli_add_cmd_grp(cli_list *cli_list_obj, char *name, char *descr, 
 	(*tmp_list)->item.cli_cmd_list_group = malloc(sizeof(cli_cmd_group));
 	memset((*tmp_list)->item.cli_cmd_list_group, 0, sizeof(cli_cmd_group));
 	(*tmp_list)->item.command_function = func;
+	(*tmp_list)->item.func_args = func_args;
 	if(help == NULL){
 		cli_grp_add_opt((*tmp_list)->item.cli_cmd_list_group, (cli_opt_item){"-h", "--help", "Help option to show this message in command.", FLAG, 0});
 	}else{
@@ -1111,7 +1113,7 @@ int cli_cmd_parser(cli_cmd_group *master_grp, cli_cmd_list *cmd_head, int argc, 
 			return -1;
 		}
 		if(found_cmd->item.command_function != NULL){
-			found_cmd->item.command_function(master_grp, found_cmd->item.cli_cmd_list_group);
+			found_cmd->item.command_function(master_grp, found_cmd->item.cli_cmd_list_group, found_cmd->item.func_args);
 		}
 
 		return 1;
