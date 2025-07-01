@@ -116,7 +116,7 @@ typedef struct cli_cmd_item {
 	char *name;
 	char *description;
 	cli_cmd_group *cli_cmd_list_group;	
-	void* (*command_function)(cli_cmd_group *master_group, cli_cmd_group *cmd_group);
+	void* (*command_function)(cli_cmd_group *master_group, cli_cmd_group *cmd_group, void *args);
 } cli_cmd_item;
 
 typedef struct cli_cmd_list {
