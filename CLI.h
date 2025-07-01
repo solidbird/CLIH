@@ -154,7 +154,7 @@ int cli_add_opt(cli_cmd_group *cli_group, cli_opt_item opt);
 int cli_add_arg_basic(cli_list* cli_list_obj, char *argument_name, char *descr);
 int cli_add_arg(cli_cmd_group *cli_group, cli_arg_item arg);
 //Commands
-cli_cmd_group* cli_add_cmd_grp(cli_list *cli_list_obj, char *name, char *descr, char *help[2], void * func(cli_cmd_group*, cli_cmd_group*));
+cli_cmd_group* cli_add_cmd_grp(cli_list *cli_list_obj, char *name, char *descr, char *help[2], void * func(cli_cmd_group*, cli_cmd_group*, void*));
 int cli_grp_add_opt_basic(cli_cmd_group *cli_group, char *option_flag_small, char *option_flag_big, char *descr);
 int cli_grp_add_opt(cli_cmd_group *cli_group, cli_opt_item opt);
 int cli_grp_add_arg_basic(cli_cmd_group *cli_group, char *name, char *descr);
