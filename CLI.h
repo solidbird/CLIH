@@ -344,7 +344,7 @@ int cli_grp_add_arg(cli_cmd_group *cli_group, cli_arg_item arg){
 	return 0;
 }
 
-cli_cmd_group* cli_add_cmd_grp(cli_list *cli_list_obj, char *name, char *descr, char *help[2], void * func(cli_cmd_group*, cli_cmd_group*), void *func_args){
+cli_cmd_group* cli_add_cmd_grp(cli_list *cli_list_obj, char *name, char *descr, char *help[2], void * func(cli_cmd_group*, cli_cmd_group*, void*), void *func_args){
 	cli_cmd_list **tmp_list = &cli_list_obj->cmd_head;
 
 	if((*tmp_list) != NULL){
